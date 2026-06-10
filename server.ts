@@ -927,16 +927,25 @@ app.post("/api/products", async (req, res) => {
 
   if (supabase) {
     try {
-      const { error } = await supabase.from("products").insert(mapProductToDB(newProduct));
+      const dbPayload = mapProductToDB(newProduct);
+      console.log("[POST /api/products] Inserting:", JSON.stringify(dbPayload).substring(0, 300));
+      const { error } = await supabase.from("products").insert(dbPayload);
       if (!error) {
+        console.log("[POST /api/products] Insert OK, id:", newProduct.id);
         return res.json({ success: true, product: newProduct });
       }
-      console.error("Supabase product insertion failed:", error);
-    } catch (err) {
-      console.error("Products POST Error:", err);
+      console.error("[POST /api/products] Supabase FAILED:", JSON.stringify(error));
+      return res.status(500).json({
+        success: false,
+        message: `Loi luu database: ${error.message || error.code || JSON.stringify(error)}`
+      });
+    } catch (err: any) {
+      console.error("[POST /api/products] Exception:", err);
+      return res.status(500).json({ success: false, message: err.message || "Loi server" });
     }
   }
 
+  // No Supabase — fallback in-memory
   products.unshift(newProduct);
   res.json({ success: true, product: newProduct });
 });
@@ -1717,25 +1726,20 @@ Yêu cầu trả về cấu trúc JSON duy nhất:
       model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
-        responseMimeType: "application/json",
-        systemInstruction: "Bạn là chuyên gia định giá tài sản cũ tiện ích cho sinh viên. Chỉ phản hồi chuỗi JSON chuẩn.",
+        temperature: 0.2,
       },
     });
 
-    const data = robustParseJSON(response.text || "{}");
+    const rawText = response.text || "{}";
+    console.log("[analyze-pricing] Gemini raw response:", rawText.substring(0, 200));
+
+    const data = robustParseJSON(rawText);
     res.json({ success: true, analysis: data });
   } catch (error: any) {
-    console.error("Gemini Pricing Analysis Error:", error);
-    res.json({
-      success: true,
-      simulated: true,
-      analysis: {
-        suggestedLowerLimit: Math.floor((originalPrice || 150000) * 0.35),
-        suggestedUpperLimit: Math.floor((originalPrice || 150000) * 0.55),
-        recommendedPrice: Math.floor((originalPrice || 150000) * 0.45),
-        confidence: "Trung bình (80%)",
-        reasoning: `Sản phẩm "${name}" thuộc ngành hàng này có lượng giao dịch lớn ở các khu ký túc xá. Giá thanh lý đề xuất phù hợp với túi tiền đa số sinh viên muốn tiết kiệm chi tiêu.`
-      }
+    console.error("[analyze-pricing] Gemini Error:", error?.message || error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || "Lỗi không xác định từ Gemini API"
     });
   }
 });
@@ -1898,27 +1902,26 @@ Hãy phân tích hình ảnh này và đưa ra kết quả phân loại chuẩn 
       model: "gemini-2.0-flash",
       contents: [{ role: "user", parts: [imgPart, textPart] }],
       config: {
-        responseMimeType: "application/json",
         temperature: 0.2
       }
     });
 
-    const parsed = robustParseJSON(response.text || "{}");
+    const rawText = response.text || "{}";
+    console.log("[smart-lens] Gemini raw response:", rawText.substring(0, 200));
+
+    const parsed = robustParseJSON(rawText);
+
+    // Validate required fields
+    if (!parsed.name || !parsed.category) {
+      throw new Error("Gemini trả về JSON thiếu trường bắt buộc: " + rawText.substring(0, 100));
+    }
+
     res.json({ success: true, results: parsed });
   } catch (error: any) {
-    console.error("Gemini Smart Lens Error:", error);
-    // If it's a real error and we have AI, try to report what went wrong
-    res.json({
-      success: true,
-      simulated: true,
-      errorInfo: error.message,
-      results: {
-        name: "Món đồ sinh viên đa năng (AI Lỗi)",
-        category: "Đồ dùng cá nhân khác",
-        condition: "Xem ảnh thực tế",
-        suggestedPrice: 120000,
-        tags: ["thanh ly", "do dung sinh vien", "gia re"]
-      }
+    console.error("[smart-lens] Gemini Error:", error?.message || error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || "Lỗi không xác định từ Gemini API"
     });
   }
 });

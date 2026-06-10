@@ -1,5 +1,69 @@
 # PROJECT CHANGELOG (CHANGELOG.md)
 
+## [Hotfix] - 2026-06-10 — Sửa lỗi đăng bán & dọn dẹp Product Card
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] Ảnh upload lên Cloudinary nhưng sản phẩm không vào database:** Root cause là schema Supabase thiếu column `tags` trong bảng `products`. `mapProductToDB()` luôn gửi trường `tags: []` khi insert, Supabase trả lỗi `column "tags" does not exist` → server bắt exception, fall through xuống in-memory store và vẫn trả `success: true` → client không biết có lỗi, ảnh đã upload Cloudinary xong nhưng record không được lưu. Fix: thêm migration `ALTER TABLE products ADD COLUMN IF NOT EXISTS tags JSONB`.
+- **[BUG] Row Level Security (RLS) chặn mọi INSERT/UPDATE:** Supabase mặc định bật RLS trên tất cả bảng. Project dùng `SUPABASE_ANON_KEY` kết nối từ Express server (không phải Supabase Auth), nên không có policy nào match → mọi write bị chặn với lỗi `new row violates row-level security policy`. Fix: `DISABLE ROW LEVEL SECURITY` trên tất cả bảng — auth/authorization đã được xử lý ở tầng Express middleware.
+- **[BUG] Supabase insert fail silent — client không biết lỗi:** Khi Supabase trả lỗi, `server.ts` chỉ `console.error` rồi fall through xuống in-memory store, vẫn trả `success: true`. `App.tsx` không phân biệt được dữ liệu vào DB hay chỉ vào RAM. Fix: trả `status 500` với error message thật khi Supabase fail; `App.tsx` hiện `alert()` với nội dung lỗi cụ thể.
+- **[BUG] Gemini Smart Lens luôn trả hardcode fallback "Món đồ sinh viên đa năng (AI Lỗi)":** Route `/api/gemini/smart-lens` trong `server.ts` dùng `config: { responseMimeType: "application/json" }` — field này không hợp lệ trong block `config` của `@google/genai` v2 SDK khi gọi multimodal → SDK throw exception → catch block trả hardcode fallback. Fix: bỏ `responseMimeType` khỏi `config`, chỉ giữ `temperature: 0.2`. Tương tự fix `/api/gemini/analyze-pricing` bỏ `responseMimeType` và `systemInstruction` không hợp lệ.
+- **[BUG] Catch block Gemini nuốt lỗi thật:** Cả 2 route Gemini trong `server.ts` trả `success: true` kèm data giả dù xảy ra exception thật, gây khó debug. Fix: catch block trả `status 500` với `error.message` thật; `PostItemModal.tsx` hiển thị error message cụ thể thay vì alert chung chung.
+
+### Thêm mới (Added)
+
+- **`add_tags_migration.sql`:** Migration thêm column `tags JSONB NOT NULL DEFAULT '[]'` vào bảng `products` kèm GIN index `idx_products_tags` phục vụ tìm kiếm theo tag.
+- **`fix_rls_migration.sql`:** Migration tắt RLS trên 12 bảng: `products`, `wants`, `forum_posts`, `forum_comments`, `chat_rooms`, `messages`, `listing_reports`, `seller_reviews`, `notifications`, `transactions`, `listing_analytics`, `users`.
+
+### Cải tiến (Improved)
+
+- **Logging chi tiết POST /api/products:** Thêm `console.log` in payload trước khi insert và xác nhận khi insert thành công, dễ trace lỗi DB trong môi trường production.
+- **Error message SmartLens rõ ràng hơn:** `PostItemModal.tsx` hiện alert với nội dung `data.error` từ server thay vì thông điệp cứng "Lỗi phân tích hình ảnh từ AI!".
+
+```
+server.ts                           ~ Modified (Gemini config fix, Supabase error handling)
+src/App.tsx                         ~ Modified (error handling khi POST product thất bại)
+src/components/PostItemModal.tsx    ~ Modified (hiển thị error message thật)
+add_tags_migration.sql              + Added
+fix_rls_migration.sql               + Added
+```
+
+---
+
+## [Hotfix] - 2026-06-10 — Sửa lỗi PostItemModal nhập thủ công & AI Assessor
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] Dropdown Danh mục & Tình trạng có giá trị mặc định khi nhập thủ công:** Nút "Tự nhập thủ công →" set `newProdCategory = CATEGORIES[0]` và `newProdCondition = CONDITIONS[2]` thay vì để trống, khiến form trông như đã điền sẵn. Fix: set cả 2 về `""` khi vào manual mode; thêm option placeholder `— Chọn danh mục —` / `— Chọn tình trạng —` vào `<select>` chỉ hiện ở manual mode.
+- **[BUG] Nút AI Assessor bị mờ không rõ lý do:** Nút "Phân Tích Giá & Khả năng Bán Bằng AI" `disabled` khi `newProdName` rỗng nhưng không có hint giải thích, user tưởng tính năng không tồn tại ở manual mode. Fix: thêm hint text động "Nhập tên sản phẩm trước để kích hoạt phân tích AI." khi chưa có tên.
+- **[BUG] Submit không validate Danh mục & Tình trạng:** `handlePostSubmit` chỉ check `newProdName`, `newProdPrice`, `newProdDescription` — có thể submit với category/condition rỗng. Fix: thêm `!newProdCategory || !newProdCondition` vào điều kiện guard.
+- **[BUG] `setPricingAnalysis(null)` không được gọi khi vào manual mode:** Nếu user đã dùng AI Assessor rồi quay lại step 1 → nhập thủ công, kết quả pricing cũ vẫn còn. Fix: thêm `setPricingAnalysis(null)` trong handler nút thủ công.
+
+```
+src/components/PostItemModal.tsx    ~ Modified
+```
+
+---
+
+## [Hotfix] - 2026-06-10 — Tái thiết kế Product Card Marketplace
+
+### Thay đổi (Changed)
+
+- **Dọn dẹp badge overlay chồng chéo trên ảnh sản phẩm:** Card cũ có 5 lớp badge đồng thời trên ảnh (discount, category, SV Verified, condition, suitabilityScore Match) dùng hack `mt-7` để tránh chồng nhau — không ổn định và rối mắt. Thiết kế lại:
+  - `top-left`: Discount badge **hoặc** category badge (không cả 2), SV Verified bên dưới — không bao giờ chồng.
+  - `top-right`: Nút save + condition label gọn.
+  - Bỏ hoàn toàn badge "X% Match" và progress bar "AI khớp" khỏi card — thông tin này vẫn còn trong detail modal.
+- **Bỏ "Sản phẩm của bạn" hardcode theo tên:** Nút này check `product.author === "Nguyễn Thu Hạ (Bạn)"` — sai hoàn toàn với user thật. Đã xóa logic này, tất cả sản phẩm đều hiện nút "Mua ngay" + giỏ hàng bình thường.
+- **Bỏ hiển thị tên tác giả dạng `author.split(" ").pop()`:** Cách lấy chữ cuối tên gây hiện tên đơn lẻ ("Hai", "Hà"...) không có ngữ nghĩa. Thay bằng chỉ hiện `school` + icon SV Verified.
+- **Giảm tags hiển thị từ 3 xuống 2**, dùng màu neutral (`bg-stone-100 text-stone-500`) thay vì rose để bớt rối.
+- **Badge "Rất rẻ (Hạt dẻ 🌟)"** (`getPriceEvaluationBadge`) bị xóa khỏi card — thay bằng discount % badge đơn giản đã có.
+
+```
+src/components/MarketplaceSpace.tsx ~ Modified (product card rewrite)
+```
+
+---
+
 Nhật ký ghi nhận lịch sử thay đổi dự án và hoàn thiện năng lực ứng dụng qua các Sprint.
 
 ---
@@ -14,8 +78,8 @@ Nhật ký ghi nhận lịch sử thay đổi dự án và hoàn thiện năng l
 - **Đồng bộ Dữ liệu Toàn diện (Full Data Pre-filling):** Nút "Dùng thông tin này" hiện đã tự động điền toàn bộ các trường dữ liệu ở Step 2, bao gồm cả trường **Mô tả chi tiết** (trước đây chỉ điền Tên và Giá), giúp người dùng tiết kiệm tối đa thời gian nhập liệu.
 - **Hợp nhất Component Đăng tin (Consolidated Post Modal):** Gỡ bỏ logic đăng tin dư thừa bên trong `MarketplaceSpace.tsx` và chuyển sang sử dụng component toàn cục `PostItemModal.tsx`.
 - **Sửa lỗi Gemini AI Integration (Fixed AI Integration Bugs):**
-  *   Sửa lỗi cấu trúc `contents` và cập nhật model chuẩn để đảm bảo hệ thống gọi AI thật thay vì dùng dữ liệu giả.
-  *   Mở rộng Prompt để AI trả về trường `description` chuyên sâu cho sản phẩm.
+  - Sửa lỗi cấu trúc `contents` và cập nhật model chuẩn để đảm bảo hệ thống gọi AI thật thay vì dùng dữ liệu giả.
+  - Mở rộng Prompt để AI trả về trường `description` chuyên sâu cho sản phẩm.
 - **Cải thiện UI/UX Quét AI (Enhanced AI Scanning Experience):** Thêm hiệu ứng thanh quét laser trực quan và tích hợp nén ảnh tự động (Auto-compression) để tối ưu hiệu năng.
 
 ```
