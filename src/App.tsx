@@ -403,19 +403,14 @@ export default function App() {
         await fetchAllData();
         return;
       }
+      // Server returned success: false — show real error, do NOT fall through silently
+      console.error("[handleAddNewProductListing] Server error:", data.message);
+      alert(`Đăng tin thất bại: ${data.message || "Lỗi không xác định"}`);
+      return;
     } catch (e) {
-      console.warn(
-        "Backend unaccessible during new list publication. Committing directly to client-side localStorage sandbox:",
-        e,
-      );
+      console.warn("Backend unaccessible during new list publication:", e);
+      alert("Không thể kết nối server. Kiểm tra console để xem lỗi chi tiết.");
     }
-
-    // Client-side local commitment
-    setProducts((prev) => {
-      const updated = [localNewProd, ...prev];
-      localStorage.setItem("uni_local_products", JSON.stringify(updated));
-      return updated;
-    });
   };
 
   // Add Product to Cart

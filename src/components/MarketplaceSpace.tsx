@@ -1,22 +1,65 @@
 import React, { useState, useEffect } from "react";
-import { Search, SearchX, Sparkles, Filter, Camera, Plus, CheckCircle2, ShoppingBag, Loader2, Upload, AlertCircle, RefreshCw, Eye, MessageSquare, ShieldCheck, Check, Info, X, Flag } from "lucide-react";
+import {
+  Search,
+  SearchX,
+  Sparkles,
+  Filter,
+  Camera,
+  Plus,
+  CheckCircle2,
+  ShoppingBag,
+  Loader2,
+  Upload,
+  AlertCircle,
+  RefreshCw,
+  Eye,
+  MessageSquare,
+  ShieldCheck,
+  Check,
+  Info,
+  X,
+  Flag,
+} from "lucide-react";
 import { Product, SellerRating } from "../types";
-import { CATEGORIES, CONDITIONS, SMART_LENS_SAMPLES, VIETNAMESE_UNIVERSITIES } from "../data";
+import {
+  CATEGORIES,
+  CONDITIONS,
+  SMART_LENS_SAMPLES,
+  VIETNAMESE_UNIVERSITIES,
+} from "../data";
 import { compressAndResizeImage } from "../utils";
 
-export const getPriceEvaluationBadge = (price: number, originalPrice: number) => {
+export const getPriceEvaluationBadge = (
+  price: number,
+  originalPrice: number,
+) => {
   if (!originalPrice || originalPrice <= 0) {
-    return { label: "Giá hợp lý & Đúng giá", style: "bg-stone-50 text-stone-700 border-stone-200" };
+    return {
+      label: "Giá hợp lý & Đúng giá",
+      style: "bg-stone-50 text-stone-700 border-stone-200",
+    };
   }
   const ratio = price / originalPrice;
   if (ratio <= 0.35) {
-    return { label: "Rất rẻ (Hạt dẻ 🌟)", style: "bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold" };
+    return {
+      label: "Rất rẻ (Hạt dẻ 🌟)",
+      style: "bg-emerald-50 text-emerald-700 border-emerald-200 font-extrabold",
+    };
   } else if (ratio <= 0.6) {
-    return { label: "Giá tốt (Tiết kiệm 🔥)", style: "bg-rose-50 text-rose-700 border-rose-200 font-bold" };
+    return {
+      label: "Giá tốt (Tiết kiệm 🔥)",
+      style: "bg-rose-50 text-rose-700 border-rose-200 font-bold",
+    };
   } else if (ratio > 0.85) {
-    return { label: "Hơi đắt một tí ⚠️", style: "bg-stone-50 text-stone-600 border-stone-200" };
+    return {
+      label: "Hơi đắt một tí ⚠️",
+      style: "bg-stone-50 text-stone-600 border-stone-200",
+    };
   } else {
-    return { label: "Giá hợp lý (Chuẩn SV ✅)", style: "bg-stone-50 text-stone-600 border-stone-200" };
+    return {
+      label: "Giá hợp lý (Chuẩn SV ✅)",
+      style: "bg-stone-50 text-stone-600 border-stone-200",
+    };
   }
 };
 
@@ -82,11 +125,13 @@ export default function MarketplaceSpace({
     minPrice,
     maxPrice,
     onlySaved,
-    onlyDeepDiscount
+    onlyDeepDiscount,
   ].filter(Boolean).length;
 
   // Add-to-cart local visual feedback state
-  const [addedProductIds, setAddedProductIds] = useState<Record<string, boolean>>({});
+  const [addedProductIds, setAddedProductIds] = useState<
+    Record<string, boolean>
+  >({});
 
   const handleAddToCartWithFeedback = (product: Product) => {
     onAddToCart(product);
@@ -102,7 +147,9 @@ export default function MarketplaceSpace({
   useEffect(() => {
     const loadRatings = () => {
       const existingRatingsStr = localStorage.getItem("uni_ratings");
-      const ratings: SellerRating[] = existingRatingsStr ? JSON.parse(existingRatingsStr) : [];
+      const ratings: SellerRating[] = existingRatingsStr
+        ? JSON.parse(existingRatingsStr)
+        : [];
       setLocalRatings(ratings);
     };
     loadRatings();
@@ -116,20 +163,22 @@ export default function MarketplaceSpace({
   // Compute enriched seller rating fields dynamically
   const enrichedProducts = React.useMemo(() => {
     return products.map((product) => {
-      const sellerRatings = localRatings.filter((r) => r.sellerName === product.author);
+      const sellerRatings = localRatings.filter(
+        (r) => r.sellerName === product.author,
+      );
       if (sellerRatings.length > 0) {
         const sum = sellerRatings.reduce((acc, curr) => acc + curr.score, 0);
         const avg = sum / sellerRatings.length;
         return {
           ...product,
           averageRating: avg,
-          ratingCount: sellerRatings.length
+          ratingCount: sellerRatings.length,
         };
       } else {
         return {
           ...product,
           averageRating: undefined,
-          ratingCount: 0
+          ratingCount: 0,
         };
       }
     });
@@ -151,15 +200,29 @@ export default function MarketplaceSpace({
 
   useEffect(() => {
     gridRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [searchQuery, selectedCategory, onlyVerified, selectedCondition, selectedSchool, minPrice, maxPrice, onlySaved, onlyDeepDiscount]);
+  }, [
+    searchQuery,
+    selectedCategory,
+    onlyVerified,
+    selectedCondition,
+    selectedSchool,
+    minPrice,
+    maxPrice,
+    onlySaved,
+    onlyDeepDiscount,
+  ]);
 
   // Visual/Modals State
   const [isLensOpen, setIsLensOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportReason, setReportReason] = useState("Sản phẩm không đúng hiện trạng thực tế");
+  const [reportReason, setReportReason] = useState(
+    "Sản phẩm không đúng hiện trạng thực tế",
+  );
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [selectedDetailProd, setSelectedDetailProd] = useState<Product | null>(null);
+  const [selectedDetailProd, setSelectedDetailProd] = useState<Product | null>(
+    null,
+  );
 
   // Smart Lens AI Upload State
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -176,19 +239,38 @@ export default function MarketplaceSpace({
   // Filtered Products Computing
   const filteredProducts = enrichedProducts.filter((product) => {
     // Normal search & Vietnamese fuzzy approximation
-    const normalQuery = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const productName = product.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const productDesc = product.description.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const productTags = (product.tags || []).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    
+    const normalQuery = searchQuery
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const productName = product.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const productDesc = product.description
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const productTags = (product.tags || [])
+      .join(" ")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
     // Category match
-    if (selectedCategory !== "Tất cả" && product.category !== selectedCategory) return false;
+    if (selectedCategory !== "Tất cả" && product.category !== selectedCategory)
+      return false;
 
     // Condition match
-    if (selectedCondition !== "Tất cả" && product.condition !== selectedCondition) return false;
-    
+    if (
+      selectedCondition !== "Tất cả" &&
+      product.condition !== selectedCondition
+    )
+      return false;
+
     // School match
-    if (selectedSchool !== "Tất cả" && product.school !== selectedSchool) return false;
+    if (selectedSchool !== "Tất cả" && product.school !== selectedSchool)
+      return false;
 
     // Price match
     if (minPrice && product.price < Number(minPrice)) return false;
@@ -199,7 +281,7 @@ export default function MarketplaceSpace({
 
     // Deep Discount match (>20% off)
     if (onlyDeepDiscount) {
-      const discountRatio = 1 - (product.price / product.originalPrice);
+      const discountRatio = 1 - product.price / product.originalPrice;
       if (discountRatio <= 0.2) return false;
     }
 
@@ -207,7 +289,13 @@ export default function MarketplaceSpace({
     if (onlySaved && !savedProductIds[product.id]) return false;
 
     // Search query match (Title, Description, Tags)
-    if (searchQuery && !productName.includes(normalQuery) && !productDesc.includes(normalQuery) && !productTags.includes(normalQuery)) return false;
+    if (
+      searchQuery &&
+      !productName.includes(normalQuery) &&
+      !productDesc.includes(normalQuery) &&
+      !productTags.includes(normalQuery)
+    )
+      return false;
 
     return true;
   });
@@ -256,7 +344,7 @@ export default function MarketplaceSpace({
       const res = await fetch("/api/gemini/smart-lens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -293,13 +381,18 @@ export default function MarketplaceSpace({
         <div>
           <h2 className="text-xl font-semibold text-rose-950 font-display flex items-center gap-2">
             Chợ Đồ Cũ Sinh Viên
-            <span className="bg-rose-150 text-rose-700 text-xs px-2.5 py-0.5 rounded-full font-medium">Uni-Market</span>
+            <span className="bg-rose-150 text-rose-700 text-xs px-2.5 py-0.5 rounded-full font-medium">
+              Uni-Market
+            </span>
           </h2>
-          <p className="text-sm text-rose-800 mt-1">Mua bán đồ giáo trình, công nghệ, phòng trọ cũ an toàn nội bộ trường học.</p>
+          <p className="text-sm text-rose-800 mt-1">
+            Mua bán đồ giáo trình, công nghệ, phòng trọ cũ an toàn nội bộ trường
+            học.
+          </p>
         </div>
-        
+
         <div className="flex gap-2 w-full md:w-auto">
-          <button 
+          <button
             onClick={() => setIsLensOpen(true)}
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 bg-white hover:bg-rose-50 text-rose-700 px-4 py-2.5 rounded-xl border border-rose-200 text-sm font-medium transition cursor-pointer"
             id="btn-smart-lens"
@@ -308,7 +401,7 @@ export default function MarketplaceSpace({
             AI Smart Lens
           </button>
 
-          <button 
+          <button
             onClick={() => onOpenPostModal && onOpenPostModal()}
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl shadow-sm text-sm font-medium transition cursor-pointer"
             id="btn-post-product"
@@ -362,7 +455,7 @@ export default function MarketplaceSpace({
                 id="search-input"
               />
             </div>
-            
+
             <div className="flex flex-nowrap items-center gap-3">
               <select
                 value={selectedSchool}
@@ -370,21 +463,25 @@ export default function MarketplaceSpace({
                 className="bg-stone-50 border border-stone-300 rounded-xl px-4 py-2.5 text-sm text-stone-700 outline-none focus:border-rose-500 cursor-pointer hover:bg-stone-100 transition"
               >
                 <option value="Tất cả">Tất cả trường</option>
-                {VIETNAMESE_UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
+                {VIETNAMESE_UNIVERSITIES.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
               </select>
 
               <div className="flex items-center gap-2 bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5">
-                <input 
-                  type="number" 
-                  placeholder="Giá từ" 
+                <input
+                  type="number"
+                  placeholder="Giá từ"
                   className="w-24 bg-transparent text-sm outline-none text-stone-700"
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
                 />
                 <span className="text-stone-400">-</span>
-                <input 
-                  type="number" 
-                  placeholder="Đến" 
+                <input
+                  type="number"
+                  placeholder="Đến"
                   className="w-24 bg-transparent text-sm outline-none text-stone-700"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
@@ -445,7 +542,7 @@ export default function MarketplaceSpace({
                 </button>
               ))}
             </div>
-            
+
             <div className="flex items-center gap-3 shrink-0">
               <select
                 value={selectedCondition}
@@ -453,7 +550,11 @@ export default function MarketplaceSpace({
                 className="bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-xs text-stone-700 outline-none focus:border-rose-500 cursor-pointer hover:bg-stone-100 transition"
               >
                 <option value="Tất cả">Mọi độ mới</option>
-                {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                {CONDITIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
               </select>
 
               <label className="text-xs font-semibold text-rose-700 flex items-center gap-2 cursor-pointer bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
@@ -463,7 +564,9 @@ export default function MarketplaceSpace({
                   onChange={(e) => setOnlyDeepDiscount(e.target.checked)}
                   className="w-4 h-4 accent-rose-600 cursor-pointer"
                 />
-                <span className="whitespace-nowrap font-bold">🔥 Giảm sâu {'>'}20%</span>
+                <span className="whitespace-nowrap font-bold">
+                  🔥 Giảm sâu {">"}20%
+                </span>
               </label>
             </div>
           </div>
@@ -472,7 +575,10 @@ export default function MarketplaceSpace({
 
       {/* Product List Grid */}
       {showSkeleton ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" id="skeleton-grid">
+        <div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4"
+          id="skeleton-grid"
+        >
           {Array.from({ length: 8 }).map((_, idx) => (
             <div
               key={idx}
@@ -481,7 +587,7 @@ export default function MarketplaceSpace({
               {/* Khối ảnh: bg-stone-200 animate-pulse h-48 w-full */}
               <div className="bg-stone-200 animate-pulse pt-[75%] w-full rounded-t-2xl" />
               <div className="mt-3 mx-4 h-1.5 bg-stone-100 animate-pulse rounded-full w-3/4" />
-              
+
               {/* Nội dung padding p-4, 3 dòng animate-pulse, gap-2 */}
               <div className="p-3 md:p-4 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
@@ -510,7 +616,9 @@ export default function MarketplaceSpace({
       ) : filteredProducts.length === 0 ? (
         <div className="bg-stone-50 border border-dashed border-stone-300 rounded-2xl py-16 px-4 text-center animate-fadeIn flex flex-col items-center justify-center">
           <SearchX className="w-10 h-10 text-stone-300 mb-3" />
-          <h4 className="text-stone-700 font-medium text-base">Ồ, hết đồ rồi 😅</h4>
+          <h4 className="text-stone-700 font-medium text-base">
+            Ồ, hết đồ rồi 😅
+          </h4>
           <p className="text-stone-500 text-sm mt-1 max-w-md mx-auto">
             Không có sản phẩm nào khớp với bộ lọc hiện tại.
           </p>
@@ -530,9 +638,9 @@ export default function MarketplaceSpace({
           >
             Bỏ hết bộ lọc
           </button>
-          
-          <button 
-            type="button" 
+
+          <button
+            type="button"
             onClick={() => onOpenPostModal && onOpenPostModal()}
             className="mt-4 text-[11px] font-medium text-stone-400 hover:text-rose-600 transition underline underline-offset-2 cursor-pointer"
           >
@@ -540,11 +648,18 @@ export default function MarketplaceSpace({
           </button>
         </div>
       ) : (
-        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 scroll-mt-24" id="products-grid">
+        <div
+          ref={gridRef}
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 scroll-mt-24"
+          id="products-grid"
+        >
           {filteredProducts.map((product) => {
             const originalPrice = product.originalPrice || 0;
-            const hasDiscount = originalPrice > 0 && product.price < originalPrice;
-            const discountPercent = hasDiscount ? Math.round((1 - product.price / originalPrice) * 100) : 0;
+            const hasDiscount =
+              originalPrice > 0 && product.price < originalPrice;
+            const discountPercent = hasDiscount
+              ? Math.round((1 - product.price / originalPrice) * 100)
+              : 0;
             let discountLabel = "";
             let discountStyle = "";
 
@@ -566,7 +681,7 @@ export default function MarketplaceSpace({
                 id={`product-card-${product.id}`}
                 onClick={() => setSelectedDetailProd(product)}
               >
-                {/* Product Cover */}
+                {/* Product Image */}
                 <div className="relative pt-[75%] bg-stone-50 overflow-hidden shrink-0">
                   <img
                     src={product.images[0]}
@@ -574,61 +689,73 @@ export default function MarketplaceSpace({
                     referrerPolicy="no-referrer"
                     loading="lazy"
                     onError={(e) => {
-                      e.currentTarget.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80";
-                      e.currentTarget.className = "absolute inset-0 w-full h-full object-cover bg-stone-100";
+                      e.currentTarget.src =
+                        "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80";
                     }}
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  
-                  {/* AI Price Badge overlay */}
-                  {discountPercent >= 10 && (
-                    <div className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm z-20 ${discountStyle}`}>
-                      {discountLabel}
-                    </div>
-                  )}
 
-                  {/* Category chip + Verified badge */}
-                  <div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10 items-start pointer-events-none">
-                    {!discountLabel && product.category && (
-                      <span className="bg-stone-900/80 backdrop-blur-md text-white text-[9.5px] font-bold px-2.5 py-1 rounded tracking-wide uppercase shadow-sm">
+                  {/* Top-left: discount OR category */}
+                  <div className="absolute top-2 left-2 flex flex-col gap-1 z-10 items-start">
+                    {discountPercent >= 10 ? (
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ${discountStyle}`}
+                      >
+                        {discountLabel}
+                      </span>
+                    ) : product.category ? (
+                      <span className="bg-stone-900/75 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded tracking-wide uppercase shadow-sm">
                         {product.category}
                       </span>
-                    )}
+                    ) : null}
                     {product.isStudentVerified && (
-                      <span className={`bg-emerald-100/90 backdrop-blur-md text-emerald-800 border border-emerald-200/50 text-[9px] font-extrabold px-2 py-0.5 rounded shadow-xs flex items-center gap-1 ${discountPercent >= 10 ? "mt-7" : ""}`}>
+                      <span className="bg-emerald-100/90 backdrop-blur-sm text-emerald-800 border border-emerald-200/50 text-[9px] font-extrabold px-2 py-0.5 rounded shadow-xs flex items-center gap-1">
                         <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                         SV Verified
                       </span>
                     )}
                   </div>
 
-                  {/* Compatibility Match Badge */}
-                  {product.suitabilityScore && (
-                    <div className="absolute bottom-2 left-2 bg-rose-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-sm z-20 shadow-sm">
-                      {product.suitabilityScore}% Match
-                    </div>
-                  )}
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleSave(product.id);
-                    }}
-                    className={`absolute top-2 right-2 p-1.5 md:p-2 rounded-full z-20 shadow-sm cursor-pointer transition ${
-                      savedProductIds[product.id] 
-                        ? "bg-rose-50 border border-rose-200 text-rose-600" 
-                        : "bg-white/90 border border-transparent text-stone-400 hover:text-rose-500 hover:bg-white"
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={savedProductIds[product.id] ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                  </button>
-
-                  <div className="absolute top-2.5 right-11 md:right-12 bg-white/90 backdrop-blur-md text-stone-700 text-[10px] px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-sm z-10 border border-stone-200/50">
-                    {CONDITION_SHORT[product.condition] || product.condition}
+                  {/* Top-right: save + condition */}
+                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSave(product.id);
+                      }}
+                      className={`p-1.5 rounded-full shadow-sm cursor-pointer transition ${
+                        savedProductIds[product.id]
+                          ? "bg-rose-50 border border-rose-200 text-rose-600"
+                          : "bg-white/90 border border-transparent text-stone-400 hover:text-rose-500 hover:bg-white"
+                      }`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill={
+                          savedProductIds[product.id] ? "currentColor" : "none"
+                        }
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                      </svg>
+                    </button>
+                    {product.condition && (
+                      <span className="bg-white/90 backdrop-blur-sm text-stone-700 text-[9px] px-1.5 py-0.5 rounded font-semibold shadow-sm border border-stone-200/50 text-right leading-tight max-w-[80px] truncate">
+                        {CONDITION_SHORT[product.condition] ||
+                          product.condition}
+                      </span>
+                    )}
                   </div>
 
+                  {/* Sold overlay */}
                   {product.status !== "Đang bán" && (
-                    <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center p-2 z-10">
+                    <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-xs flex items-center justify-center z-20">
                       <span className="bg-white/95 text-stone-900 font-extrabold text-xs px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm">
                         {product.status}
                       </span>
@@ -636,131 +763,134 @@ export default function MarketplaceSpace({
                   )}
                 </div>
 
-                {/* Product Details */}
+                {/* Product Info */}
                 <div className="p-3 flex-1 flex flex-col justify-between">
-                  <div>
-                    {/* Tier 2: Title */}
-                    <h3 
+                  <div className="space-y-1.5">
+                    <h3
+                      className="font-bold text-stone-900 text-sm leading-snug line-clamp-2 hover:text-rose-600 transition cursor-pointer"
                       onClick={() => setSelectedDetailProd(product)}
-                      className="font-bold text-stone-900 text-sm leading-snug line-clamp-2 hover:text-rose-600 transition duration-150 cursor-pointer"
                     >
                       {product.name}
                     </h3>
-
-                    {/* Tier 3: AI tags, Suitability Score, Author/School */}
-                    <div className="mt-1.5 space-y-2">
-                      {/* Author / School Info */}
-                      <div className="text-stone-500 text-[9px] flex items-center gap-1 font-medium truncate pt-1">
-                         {product.school} &middot; {product.author.split(" ").pop()}
-                         {product.isStudentVerified && <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 shrink-0 inline-block" />}
-                      </div>
-
-                      {/* AI Tags */}
-                      {product.tags && product.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {product.tags.slice(0, 3).map((tag, idx) => (
-                            <span key={idx} className="bg-rose-50 border border-rose-100 text-rose-700 text-[9px] px-1.5 py-0.5 rounded font-medium">
+                    <div className="text-stone-400 text-[10px] flex items-center gap-1 truncate">
+                      <span className="truncate">{product.school}</span>
+                      {product.isStudentVerified && (
+                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                      )}
+                    </div>
+                    {product.tags && product.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {product.tags
+                          .slice(0, 2)
+                          .map((tag: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="bg-stone-100 text-stone-500 text-[9px] px-1.5 py-0.5 rounded font-medium"
+                            >
                               #{tag.trim()}
                             </span>
                           ))}
-                        </div>
-                      )}
-
-                      {/* Suitability Score bar */}
-                      <div className="flex items-center gap-2 mt-2" title="AI tính điểm phù hợp dựa trên ngành học và lịch sử xem">
-                        <div className="h-1.5 rounded-full bg-stone-100 flex-1 overflow-hidden">
-                          <div 
-                            className="h-full bg-rose-400 rounded-full transition-all" 
-                            style={{ width: `${product.suitabilityScore}%` }}
-                          />
-                        </div>
-                        <span className="text-[9px] text-stone-400 whitespace-nowrap font-medium shrink-0">
-                          AI khớp {product.suitabilityScore}%
-                        </span>
                       </div>
-                    </div>
-
-                    {/* Price Evaluation Badge */}
-                    {product.originalPrice && product.originalPrice > 0 ? (() => {
-                      const evalBadge = getPriceEvaluationBadge(product.price, product.originalPrice);
-                      return (
-                        <div className={`mt-2.5 px-2 py-1 rounded-lg text-[10px] w-max flex items-center gap-1.5 border ${evalBadge.style} shadow-xs`}>
-                          <Sparkles className="w-3 h-3 text-rose-400 fill-rose-300" />
-                          {evalBadge.label}
-                        </div>
-                      );
-                    })() : null}
+                    )}
                   </div>
 
-                  {/* Actions Base on My Goods (Tier 1 Part 2) */}
-                  <div className="mt-3 pt-3 border-t border-stone-100">
-                    <div className="flex items-center justify-between mb-2">
-                       <div className="flex items-center gap-1.5 flex-wrap">
-                         <span className="font-extrabold text-rose-600 text-base md:text-lg font-display leading-none">{product.price.toLocaleString("vi-VN")}đ</span>
-                         {product.originalPrice && product.originalPrice > product.price && (
-                           <span className="text-[10px] text-stone-400 font-semibold line-through leading-none">
-                             {product.originalPrice.toLocaleString("vi-VN")}đ
-                           </span>
-                         )}
-                       </div>
+                  <div className="mt-3 pt-2.5 border-t border-stone-100">
+                    <div className="flex items-baseline gap-1.5 mb-2">
+                      <span className="font-extrabold text-rose-600 text-base leading-none">
+                        {product.price.toLocaleString("vi-VN")}đ
+                      </span>
+                      {product.originalPrice &&
+                        product.originalPrice > product.price && (
+                          <span className="text-[10px] text-stone-400 line-through leading-none">
+                            {product.originalPrice.toLocaleString("vi-VN")}đ
+                          </span>
+                        )}
                     </div>
 
-                    {product.author === "Nguyễn Thu Hạ (Bạn)" ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onNavigateToTab) onNavigateToTab("my-listings");
-                        }}
-                        className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-[10px] md:text-sm py-1.5 md:py-2.5 rounded-xl transition cursor-pointer min-h-[36px]"
-                      >
-                        Sản phẩm của bạn
-                      </button>
-                    ) : (
-                      <div className="flex flex-col">
-                        <div className="grid grid-cols-2 gap-1.5 flex-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddToCartWithFeedback(product);
-                            }}
-                            disabled={product.status !== "Đang bán"}
-                            className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[36px] border ${
-                              addedProductIds[product.id]
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-600 shadow-xs"
-                                : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600 shadow-xs"
-                            } disabled:opacity-50`}
-                            title="Thêm vào giỏ"
-                          >
-                            {addedProductIds[product.id] ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 shrink-0" /> : <ShoppingBag className="w-4 h-4 md:w-5 md:h-5 shrink-0" />}
-                          </button>
-  
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddToCart(product);
-                              if (product.status === "Đang bán" && onNavigateToTab) {
-                                onNavigateToTab("checkout");
-                              }
-                            }}
-                            disabled={product.status !== "Đang bán"}
-                            className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 font-bold text-[10px] md:text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[36px] disabled:opacity-50 flex items-center justify-center truncate px-1"
-                          >
-                            Mua ngay
-                          </button>
-                        </div>
-                        
+                    {product.authorId === "user_client_default" ||
+                    !product.authorId ? (
+                      <div className="grid grid-cols-2 gap-1.5">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onSelectProductForChat(product.id);
+                            handleAddToCartWithFeedback(product);
                           }}
                           disabled={product.status !== "Đang bán"}
-                          className="w-full text-center mt-3 text-rose-600 hover:text-rose-700 text-xs font-semibold cursor-pointer transition underline-offset-2 hover:underline flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px]"
+                          className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[34px] border text-xs font-semibold disabled:opacity-50 ${
+                            addedProductIds[product.id]
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                              : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600"
+                          }`}
                         >
-                          💬 Nhắn tin hỏi giá
+                          {addedProductIds[product.id] ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            <ShoppingBag className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddToCart(product);
+                            if (
+                              product.status === "Đang bán" &&
+                              onNavigateToTab
+                            )
+                              onNavigateToTab("checkout");
+                          }}
+                          disabled={product.status !== "Đang bán"}
+                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[34px] disabled:opacity-50"
+                        >
+                          Mua ngay
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCartWithFeedback(product);
+                          }}
+                          disabled={product.status !== "Đang bán"}
+                          className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[34px] border text-xs font-semibold disabled:opacity-50 ${
+                            addedProductIds[product.id]
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                              : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600"
+                          }`}
+                        >
+                          {addedProductIds[product.id] ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            <ShoppingBag className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddToCart(product);
+                            if (
+                              product.status === "Đang bán" &&
+                              onNavigateToTab
+                            )
+                              onNavigateToTab("checkout");
+                          }}
+                          disabled={product.status !== "Đang bán"}
+                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[34px] disabled:opacity-50"
+                        >
+                          Mua ngay
                         </button>
                       </div>
                     )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectProductForChat(product.id);
+                      }}
+                      disabled={product.status !== "Đang bán"}
+                      className="w-full text-center mt-2 text-rose-600 hover:text-rose-700 text-xs font-semibold cursor-pointer transition hover:underline flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed min-h-[32px]"
+                    >
+                      💬 Nhắn tin hỏi giá
+                    </button>
                   </div>
                 </div>
               </div>
@@ -771,15 +901,20 @@ export default function MarketplaceSpace({
 
       {/* MODAL 1: AI SMART LENS */}
       {isLensOpen && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" id="lens-modal">
+        <div
+          className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+          id="lens-modal"
+        >
           <div className="bg-white w-full max-w-2xl rounded-2xl overflow-hidden shadow-xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-4 text-white flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <Camera className="w-5 h-5" />
-                <h3 className="font-semibold text-base font-display">AI Smart Lens - Quét Tìm Kiếm Bằng Ảnh</h3>
+                <h3 className="font-semibold text-base font-display">
+                  AI Smart Lens - Quét Tìm Kiếm Bằng Ảnh
+                </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setIsLensOpen(false)}
                 className="text-white hover:text-white/80 font-bold text-lg p-1"
               >
@@ -790,7 +925,9 @@ export default function MarketplaceSpace({
             {/* Scrollable Context */}
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
               <p className="text-xs text-stone-600">
-                Hãy lựa chọn 1 trong các ảnh sinh viên mặc định mẫu bên dưới để xem hệ thống AI phân tích tự động, hoặc drag & drop ảnh chụp đồ thanh lý của riêng bạn.
+                Hãy lựa chọn 1 trong các ảnh sinh viên mặc định mẫu bên dưới để
+                xem hệ thống AI phân tích tự động, hoặc drag & drop ảnh chụp đồ
+                thanh lý của riêng bạn.
               </p>
 
               {/* Presets Gallery */}
@@ -800,12 +937,23 @@ export default function MarketplaceSpace({
                     key={sample.id}
                     onClick={() => selectPresetLens(sample.id, sample.url)}
                     className={`border-2 rounded-xl p-1.5 text-left transition cursor-pointer overflow-hidden flex flex-col ${
-                      selectedPresetId === sample.id ? "border-rose-500 bg-rose-50" : "border-stone-200 hover:bg-stone-50"
+                      selectedPresetId === sample.id
+                        ? "border-rose-500 bg-rose-50"
+                        : "border-stone-200 hover:bg-stone-50"
                     }`}
                   >
-                    <img src={sample.url} alt={sample.title} className="aspect-video object-cover rounded-lg w-full h-20" referrerPolicy="no-referrer" />
-                    <span className="text-[10px] font-bold text-stone-800 mt-1 line-clamp-1">{sample.title}</span>
-                    <span className="text-[9px] text-stone-500 line-clamp-1">{sample.desc}</span>
+                    <img
+                      src={sample.url}
+                      alt={sample.title}
+                      className="aspect-video object-cover rounded-lg w-full h-20"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="text-[10px] font-bold text-stone-800 mt-1 line-clamp-1">
+                      {sample.title}
+                    </span>
+                    <span className="text-[9px] text-stone-500 line-clamp-1">
+                      {sample.desc}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -819,16 +967,25 @@ export default function MarketplaceSpace({
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                 />
                 <Upload className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-                <span className="text-xs font-semibold text-stone-700 block">Kéo thả ảnh thực tế hoặc click chọn file</span>
-                <span className="text-[10px] text-stone-400 mt-0.5 block">Hỗ trợ định dạng PNG, JPG dưới 5MB</span>
+                <span className="text-xs font-semibold text-stone-700 block">
+                  Kéo thả ảnh thực tế hoặc click chọn file
+                </span>
+                <span className="text-[10px] text-stone-400 mt-0.5 block">
+                  Hỗ trợ định dạng PNG, JPG dưới 5MB
+                </span>
               </div>
 
               {/* Active Image Preview & Scanner Visual */}
               {uploadedImage && (
                 <div className="relative bg-stone-50 border border-stone-200 rounded-xl p-4 flex flex-col items-center">
                   <div className="relative w-fit overflow-hidden rounded-lg max-h-56">
-                    <img src={uploadedImage} alt="Preview" referrerPolicy="no-referrer" className="object-contain max-h-52 w-auto" />
-                    
+                    <img
+                      src={uploadedImage}
+                      alt="Preview"
+                      referrerPolicy="no-referrer"
+                      className="object-contain max-h-52 w-auto"
+                    />
+
                     {/* Pulsing Scan bar */}
                     {isScanning && (
                       <div className="absolute top-0 inset-x-0 h-1 bg-rose-500/80 shadow-rose-400 shadow-md animate-bounce z-20" />
@@ -862,34 +1019,55 @@ export default function MarketplaceSpace({
                     <Sparkles className="w-4 h-4 fill-rose-600 text-rose-600" />
                     Kết Quả Dự Đoán Từ AI Smart Lens
                   </h4>
-                  
+
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="bg-white p-2.5 rounded-lg border border-rose-150">
-                      <span className="text-stone-400 block text-[10px]">TÊN MÓN ĐỒ DỰ ĐOÁN</span>
-                      <span className="font-bold text-stone-800">{lensResult.name}</span>
+                      <span className="text-stone-400 block text-[10px]">
+                        TÊN MÓN ĐỒ DỰ ĐOÁN
+                      </span>
+                      <span className="font-bold text-stone-800">
+                        {lensResult.name}
+                      </span>
                     </div>
 
                     <div className="bg-white p-2.5 rounded-lg border border-rose-150">
-                      <span className="text-stone-400 block text-[10px]">DANH MỤC KHUYÊN DÙNG</span>
-                      <span className="font-bold text-stone-800">{lensResult.category}</span>
+                      <span className="text-stone-400 block text-[10px]">
+                        DANH MỤC KHUYÊN DÙNG
+                      </span>
+                      <span className="font-bold text-stone-800">
+                        {lensResult.category}
+                      </span>
                     </div>
 
                     <div className="bg-white p-2.5 rounded-lg border border-rose-150">
-                      <span className="text-stone-400 block text-[10px]">TÌNH TRẠNG ƯỚC LƯỢNG</span>
-                      <span className="font-bold text-stone-800">{lensResult.condition}</span>
+                      <span className="text-stone-400 block text-[10px]">
+                        TÌNH TRẠNG ƯỚC LƯỢNG
+                      </span>
+                      <span className="font-bold text-stone-800">
+                        {lensResult.condition}
+                      </span>
                     </div>
 
                     <div className="bg-white p-2.5 rounded-lg border border-rose-150">
-                      <span className="text-stone-400 block text-[10px]">GIÁ ĐỀ XUẤT CHO SINH VIÊN</span>
-                      <span className="font-bold text-rose-600">{lensResult.suggestedPrice?.toLocaleString()} VND</span>
+                      <span className="text-stone-400 block text-[10px]">
+                        GIÁ ĐỀ XUẤT CHO SINH VIÊN
+                      </span>
+                      <span className="font-bold text-rose-600">
+                        {lensResult.suggestedPrice?.toLocaleString()} VND
+                      </span>
                     </div>
                   </div>
 
                   <div className="bg-white p-2.5 rounded-lg border border-rose-150 text-xs">
-                    <span className="text-stone-400 block text-[10px]">TỪ KHÓA ĐỒNG BỘ</span>
+                    <span className="text-stone-400 block text-[10px]">
+                      TỪ KHÓA ĐỒNG BỘ
+                    </span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {lensResult.tags?.map((tg: string) => (
-                        <span key={tg} className="bg-stone-100 text-stone-600 text-[10px] px-2 py-0.5 rounded-md font-medium">
+                        <span
+                          key={tg}
+                          className="bg-stone-100 text-stone-600 text-[10px] px-2 py-0.5 rounded-md font-medium"
+                        >
                           #{tg}
                         </span>
                       ))}
@@ -922,16 +1100,20 @@ export default function MarketplaceSpace({
 
       {/* MODAL 3: BEAUTIFUL DETAILED PRODUCT VIEW */}
       {selectedDetailProd && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn" id="product-detail-modal">
+        <div
+          className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+          id="product-detail-modal"
+        >
           <div className="bg-white w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col relative">
-            
             {/* Header section with neat design */}
             <div className="bg-gradient-to-r from-rose-650 via-rose-600 to-pink-600 p-4 px-6 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
-                <span className="font-extrabold text-sm tracking-wide uppercase font-display">Chi Tiết Vật Phẩm Thanh Lý</span>
+                <span className="font-extrabold text-sm tracking-wide uppercase font-display">
+                  Chi Tiết Vật Phẩm Thanh Lý
+                </span>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedDetailProd(null)}
                 className="bg-white/10 hover:bg-white/25 active:scale-95 text-white font-black text-xs py-1.5 px-3 rounded-xl transition cursor-pointer"
               >
@@ -943,17 +1125,16 @@ export default function MarketplaceSpace({
             <div className="overflow-y-auto p-6 md:p-8 space-y-6 flex-1 text-xs">
               {/* Dual-column section */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                
                 {/* Image panel (2 Cols) */}
                 <div className="md:col-span-2 space-y-3">
                   <div className="relative pt-[100%] bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden shadow-xs">
-                    <img 
-                      src={selectedDetailProd.images[0]} 
-                      alt={selectedDetailProd.name} 
+                    <img
+                      src={selectedDetailProd.images[0]}
+                      alt={selectedDetailProd.name}
                       className="absolute inset-0 w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                    
+
                     {/* Compatibility Match badge overlay */}
                     <div className="absolute bottom-3 right-3 bg-rose-605 text-white font-black text-xs px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1 z-15 bg-rose-600">
                       <Sparkles className="w-3.5 h-3.5 fill-white animate-spin" />
@@ -970,17 +1151,25 @@ export default function MarketplaceSpace({
                   {/* Summary of items specifications */}
                   <div className="bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-2">
                     <div className="flex justify-between items-center gap-2">
-                      <span className="text-stone-400 font-semibold">Tình trạng cũ mới:</span>
-                      <span className="font-bold text-stone-800 text-right">{selectedDetailProd.condition}</span>
+                      <span className="text-stone-400 font-semibold">
+                        Tình trạng cũ mới:
+                      </span>
+                      <span className="font-bold text-stone-800 text-right">
+                        {selectedDetailProd.condition}
+                      </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
-                      <span className="text-stone-400 font-semibold">Hiện trạng đăng bán:</span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                        selectedDetailProd.status === "Đang bán" 
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                          : "bg-amber-50 text-amber-600 border border-amber-200"
-                      }`}>
+                      <span className="text-stone-400 font-semibold">
+                        Hiện trạng đăng bán:
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                          selectedDetailProd.status === "Đang bán"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-amber-50 text-amber-600 border border-amber-200"
+                        }`}
+                      >
                         {selectedDetailProd.status}
                       </span>
                     </div>
@@ -1001,10 +1190,20 @@ export default function MarketplaceSpace({
                       {selectedDetailProd.originalPrice && (
                         <>
                           <span className="text-stone-400 text-xs line-through">
-                            {selectedDetailProd.originalPrice.toLocaleString("vi-VN")}đ
+                            {selectedDetailProd.originalPrice.toLocaleString(
+                              "vi-VN",
+                            )}
+                            đ
                           </span>
                           <span className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-100">
-                            Học viên tiết kiệm {Math.round((1 - selectedDetailProd.price / selectedDetailProd.originalPrice) * 100)}%
+                            Học viên tiết kiệm{" "}
+                            {Math.round(
+                              (1 -
+                                selectedDetailProd.price /
+                                  selectedDetailProd.originalPrice) *
+                                100,
+                            )}
+                            %
                           </span>
                         </>
                       )}
@@ -1012,30 +1211,44 @@ export default function MarketplaceSpace({
                   </div>
 
                   {/* Tags Detail block */}
-                  {selectedDetailProd.tags && selectedDetailProd.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {selectedDetailProd.tags.map((tag: string, idx: number) => (
-                        <span key={idx} className="bg-rose-50 border border-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded font-bold">
-                          #{tag.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {selectedDetailProd.tags &&
+                    selectedDetailProd.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {selectedDetailProd.tags.map(
+                          (tag: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="bg-rose-50 border border-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded font-bold"
+                            >
+                              #{tag.trim()}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
 
                   {/* Campus Verified Info block */}
                   <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 space-y-2">
                     <div className="flex items-center gap-2 text-[11px] text-stone-700">
                       <div className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
-                      <span className="font-semibold text-stone-500">Khu vực bàn giao chính:</span>
-                      <span className="font-bold text-stone-900 truncate">{selectedDetailProd.school}</span>
+                      <span className="font-semibold text-stone-500">
+                        Khu vực bàn giao chính:
+                      </span>
+                      <span className="font-bold text-stone-900 truncate">
+                        {selectedDetailProd.school}
+                      </span>
                     </div>
 
                     <div className="border-t border-stone-200/60 pt-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-stone-600">
-                        <span className="font-medium text-stone-400">Thành viên bán:</span>
-                        <span className="font-bold text-stone-850">{selectedDetailProd.author}</span>
+                        <span className="font-medium text-stone-400">
+                          Thành viên bán:
+                        </span>
+                        <span className="font-bold text-stone-850">
+                          {selectedDetailProd.author}
+                        </span>
                       </div>
-                      
+
                       {selectedDetailProd.isStudentVerified ? (
                         <span className="text-emerald-700 text-[9.5px] font-bold flex items-center gap-1 bg-emerald-50 border border-emerald-250 px-2 py-0.5 rounded-full">
                           <CheckCircle2 className="w-3.5 h-3.5 fill-emerald-605 text-white bg-emerald-600 rounded-full" />
@@ -1051,9 +1264,12 @@ export default function MarketplaceSpace({
 
                   {/* Ghi chú */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-stone-405 font-extrabold uppercase tracking-wide block">Ghi chú hiện trạng & lý do thanh lý</span>
+                    <span className="text-[10px] text-stone-405 font-extrabold uppercase tracking-wide block">
+                      Ghi chú hiện trạng & lý do thanh lý
+                    </span>
                     <div className="bg-stone-50 border border-stone-205 p-4 rounded-xl text-stone-700 leading-relaxed max-h-40 overflow-y-auto whitespace-pre-line text-xs font-medium">
-                      {selectedDetailProd.description || "Thành viên kiểm định đồ xài cũ bình thường, lý do bán vì phòng trọ chật, nhượng lại giá rẻ hỗ trợ các bạn cùng khóa."}
+                      {selectedDetailProd.description ||
+                        "Thành viên kiểm định đồ xài cũ bình thường, lý do bán vì phòng trọ chật, nhượng lại giá rẻ hỗ trợ các bạn cùng khóa."}
                     </div>
                   </div>
 
@@ -1064,7 +1280,12 @@ export default function MarketplaceSpace({
                       An toàn giao dịch sinh viên:
                     </span>
                     <p className="text-[10.5px]">
-                      Sản phẩm này tương thích để hẹn gặp bàn giao ngay tại sảnh hành lang hoặc sảnh KTX trường <b>{selectedDetailProd.school}</b>. Khuyên khích kiểm tra chức nang của thiết bị hay giáo trình đầy đủ chữ trước khi thực hiện giao dịch bằng ví <b>StudentPay</b> để nhận nhượng giá tốt nhất!
+                      Sản phẩm này tương thích để hẹn gặp bàn giao ngay tại sảnh
+                      hành lang hoặc sảnh KTX trường{" "}
+                      <b>{selectedDetailProd.school}</b>. Khuyên khích kiểm tra
+                      chức nang của thiết bị hay giáo trình đầy đủ chữ trước khi
+                      thực hiện giao dịch bằng ví <b>StudentPay</b> để nhận
+                      nhượng giá tốt nhất!
                     </p>
                   </div>
                 </div>
@@ -1074,7 +1295,9 @@ export default function MarketplaceSpace({
             {/* Bottom active action buttons footer */}
             <div className="bg-stone-50 p-4.5 px-6 border-t border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
               <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 select-none">
-                <span className="text-[10px] text-stone-400 font-semibold text-center sm:text-left">Hỗ trợ giao dịch trực tiếp an toàn</span>
+                <span className="text-[10px] text-stone-400 font-semibold text-center sm:text-left">
+                  Hỗ trợ giao dịch trực tiếp an toàn
+                </span>
                 <button
                   type="button"
                   onClick={() => setIsReportModalOpen(true)}
@@ -1084,7 +1307,7 @@ export default function MarketplaceSpace({
                   <Flag className="w-3 h-3" /> Báo cáo
                 </button>
               </div>
-              
+
               <div className="flex flex-wrap gap-2.5 justify-end">
                 <button
                   type="button"
@@ -1132,7 +1355,7 @@ export default function MarketplaceSpace({
               <h3 className="text-white font-bold text-sm flex items-center gap-1.5 font-display">
                 <AlertCircle className="w-4 h-4" /> Báo cáo lừa đảo / Vi phạm
               </h3>
-              <button 
+              <button
                 onClick={() => setIsReportModalOpen(false)}
                 className="text-rose-100 hover:text-white cursor-pointer"
               >
@@ -1141,31 +1364,38 @@ export default function MarketplaceSpace({
             </div>
             <div className="p-5 space-y-4">
               <p className="text-xs text-stone-600">
-                Hãy cho quản trị viên biết tại sao sản phẩm <b>"{selectedDetailProd.name}"</b> lại vi phạm tiêu chuẩn cộng đồng môi trường sinh viên:
+                Hãy cho quản trị viên biết tại sao sản phẩm{" "}
+                <b>"{selectedDetailProd.name}"</b> lại vi phạm tiêu chuẩn cộng
+                đồng môi trường sinh viên:
               </p>
-              
+
               <div className="space-y-2">
                 {[
-                  "Sản phẩm không đúng hiện trạng thực tế", 
+                  "Sản phẩm không đúng hiện trạng thực tế",
                   "Người bán có dấu hiệu yêu cầu chuyển khoản trước",
                   "Hình ảnh không rỏ ràng, có dấu hiệu giả mạo",
                   "Bán đồ cấm, không phù hợp môi trường học đường",
-                  "Spam danh mục, sai giá nhằm phá giá lừa đảo"
-                ].map(r => (
-                  <label key={r} className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-stone-50 border border-transparent hover:border-stone-100 transition">
-                    <input 
-                      type="radio" 
-                      name="report" 
-                      checked={reportReason === r} 
+                  "Spam danh mục, sai giá nhằm phá giá lừa đảo",
+                ].map((r) => (
+                  <label
+                    key={r}
+                    className="flex items-start gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-stone-50 border border-transparent hover:border-stone-100 transition"
+                  >
+                    <input
+                      type="radio"
+                      name="report"
+                      checked={reportReason === r}
                       onChange={() => setReportReason(r)}
                       className="mt-0.5 accent-rose-600"
                     />
-                    <span className="text-xs text-stone-700 font-medium">{r}</span>
+                    <span className="text-xs text-stone-700 font-medium">
+                      {r}
+                    </span>
                   </label>
                 ))}
               </div>
 
-              <button 
+              <button
                 onClick={async () => {
                   if (!selectedDetailProd || isSubmittingReport) return;
                   setIsSubmittingReport(true);
@@ -1176,14 +1406,21 @@ export default function MarketplaceSpace({
                       await fetch("/api/reports", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ productId: selectedDetailProd.id, reason: reportReason })
+                        body: JSON.stringify({
+                          productId: selectedDetailProd.id,
+                          reason: reportReason,
+                        }),
                       });
                     }
-                    alert(`Đã gửi báo cáo: "${reportReason}". Quản trị viên sẽ xem xét tin này.`);
+                    alert(
+                      `Đã gửi báo cáo: "${reportReason}". Quản trị viên sẽ xem xét tin này.`,
+                    );
                     setIsReportModalOpen(false);
                     setSelectedDetailProd(null);
                   } catch (err) {
-                    alert("Chưa thể gửi báo cáo lúc này. Vui lòng thử lại sau.");
+                    alert(
+                      "Chưa thể gửi báo cáo lúc này. Vui lòng thử lại sau.",
+                    );
                   } finally {
                     setIsSubmittingReport(false);
                   }
@@ -1191,7 +1428,9 @@ export default function MarketplaceSpace({
                 disabled={isSubmittingReport}
                 className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-xl cursor-pointer transition shadow-xs mt-2 disabled:opacity-60"
               >
-                {isSubmittingReport ? "Đang gửi..." : "Gửi Báo Cáo Bảo Vệ Cộng Đồng"}
+                {isSubmittingReport
+                  ? "Đang gửi..."
+                  : "Gửi Báo Cáo Bảo Vệ Cộng Đồng"}
               </button>
             </div>
           </div>
@@ -1201,20 +1440,27 @@ export default function MarketplaceSpace({
       {/* Mobile Filter Bottom Sheet */}
       {isFilterOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden flex flex-col justify-end">
-          <div 
-            className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs animate-fadeIn" 
+          <div
+            className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs animate-fadeIn"
             onClick={() => setIsFilterOpen(false)}
           />
           <div className="bg-white w-full rounded-t-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col animate-[slideUp_0.3s_ease-out]">
             <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-              <h3 className="font-bold text-stone-900 font-display text-lg">Bộ lọc tìm kiếm</h3>
-              <button onClick={() => setIsFilterOpen(false)} className="bg-stone-100 hover:bg-stone-200 text-stone-500 p-2 rounded-full transition cursor-pointer">
+              <h3 className="font-bold text-stone-900 font-display text-lg">
+                Bộ lọc tìm kiếm
+              </h3>
+              <button
+                onClick={() => setIsFilterOpen(false)}
+                className="bg-stone-100 hover:bg-stone-200 text-stone-500 p-2 rounded-full transition cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-5 overflow-y-auto max-h-[70vh] space-y-6">
               <div className="space-y-3">
-                <label className="text-sm font-bold text-stone-800">Danh mục</label>
+                <label className="text-sm font-bold text-stone-800">
+                  Danh mục
+                </label>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setSelectedCategory("Tất cả")}
@@ -1243,31 +1489,39 @@ export default function MarketplaceSpace({
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-bold text-stone-800">Trường đại học</label>
+                <label className="text-sm font-bold text-stone-800">
+                  Trường đại học
+                </label>
                 <select
                   value={selectedSchool}
                   onChange={(e) => setSelectedSchool(e.target.value)}
                   className="w-full bg-stone-50 border border-stone-300 rounded-xl px-4 py-3 text-sm text-stone-700 outline-none focus:border-rose-500 cursor-pointer"
                 >
                   <option value="Tất cả">Tất cả trường</option>
-                  {VIETNAMESE_UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
+                  {VIETNAMESE_UNIVERSITIES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-bold text-stone-800">Tình trạng</label>
+                <label className="text-sm font-bold text-stone-800">
+                  Tình trạng
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                      onClick={() => setSelectedCondition("Tất cả")}
-                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer text-center ${
-                        selectedCondition === "Tất cả"
-                          ? "bg-rose-100 text-rose-700 font-bold border border-rose-200"
-                          : "bg-stone-100 text-stone-600 border border-transparent"
-                      }`}
-                    >
-                      Mọi độ mới
+                    onClick={() => setSelectedCondition("Tất cả")}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer text-center ${
+                      selectedCondition === "Tất cả"
+                        ? "bg-rose-100 text-rose-700 font-bold border border-rose-200"
+                        : "bg-stone-100 text-stone-600 border border-transparent"
+                    }`}
+                  >
+                    Mọi độ mới
                   </button>
-                  {CONDITIONS.map(c => (
+                  {CONDITIONS.map((c) => (
                     <button
                       key={c}
                       onClick={() => setSelectedCondition(c)}
@@ -1284,12 +1538,14 @@ export default function MarketplaceSpace({
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-bold text-stone-800">Khoảng giá</label>
+                <label className="text-sm font-bold text-stone-800">
+                  Khoảng giá
+                </label>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5">
-                    <input 
-                      type="number" 
-                      placeholder="Từ (đ)" 
+                    <input
+                      type="number"
+                      placeholder="Từ (đ)"
                       className="w-full bg-transparent text-sm outline-none text-stone-700"
                       value={minPrice}
                       onChange={(e) => setMinPrice(e.target.value)}
@@ -1297,9 +1553,9 @@ export default function MarketplaceSpace({
                   </div>
                   <span className="text-stone-400 font-bold">-</span>
                   <div className="flex-1 bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5">
-                    <input 
-                      type="number" 
-                      placeholder="Đến (đ)" 
+                    <input
+                      type="number"
+                      placeholder="Đến (đ)"
                       className="w-full bg-transparent text-sm outline-none text-stone-700"
                       value={maxPrice}
                       onChange={(e) => setMaxPrice(e.target.value)}
@@ -1309,7 +1565,9 @@ export default function MarketplaceSpace({
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-bold text-stone-800">Tùy chọn khác</label>
+                <label className="text-sm font-bold text-stone-800">
+                  Tùy chọn khác
+                </label>
                 <div className="space-y-3">
                   <label className="flex items-center justify-between p-3 bg-stone-50 border border-stone-200 rounded-xl font-medium text-sm text-stone-700 cursor-pointer">
                     <div className="flex items-center gap-2">
@@ -1326,7 +1584,7 @@ export default function MarketplaceSpace({
                   <label className="flex items-center justify-between p-3 bg-rose-50 border border-rose-200 rounded-xl font-medium text-sm text-rose-700 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <span className="font-bold">🔥</span>
-                      Chỉ hiện đồ giảm giá sâu ({'>'}20%)
+                      Chỉ hiện đồ giảm giá sâu ({">"}20%)
                     </div>
                     <input
                       type="checkbox"
@@ -1350,9 +1608,9 @@ export default function MarketplaceSpace({
                 </div>
               </div>
             </div>
-            
+
             <div className="p-4 border-t border-stone-100 flex gap-3 bg-white">
-              <button 
+              <button
                 onClick={() => {
                   setSelectedCategory("Tất cả");
                   setSelectedSchool("Tất cả");
@@ -1367,7 +1625,7 @@ export default function MarketplaceSpace({
               >
                 Reset
               </button>
-              <button 
+              <button
                 onClick={() => setIsFilterOpen(false)}
                 className="flex-1 py-3 rounded-xl font-bold text-white bg-rose-600 hover:bg-rose-700 transition cursor-pointer"
               >

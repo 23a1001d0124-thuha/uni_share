@@ -777,6 +777,12 @@
   .min-h-11 {
     min-height: calc(var(--spacing) * 11);
   }
+  .min-h-\[32px\] {
+    min-height: 32px;
+  }
+  .min-h-\[34px\] {
+    min-height: 34px;
+  }
   .min-h-\[36px\] {
     min-height: 36px;
   }
@@ -1748,6 +1754,12 @@
       background-color: color-mix(in oklab, var(--color-stone-900) 60%, transparent);
     }
   }
+  .bg-stone-900\/75 {
+    background-color: color-mix(in srgb, oklch(21.6% 0.006 56.043) 75%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-stone-900) 75%, transparent);
+    }
+  }
   .bg-stone-900\/80 {
     background-color: color-mix(in srgb, oklch(21.6% 0.006 56.043) 80%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -2098,6 +2110,9 @@
   }
   .py-24 {
     padding-block: calc(var(--spacing) * 24);
+  }
+  .pt-0\.5 {
+    padding-top: calc(var(--spacing) * 0.5);
   }
   .pt-1 {
     padding-top: calc(var(--spacing) * 1);

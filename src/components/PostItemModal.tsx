@@ -110,14 +110,17 @@ export default function PostItemModal({
         body: JSON.stringify({ imageBase64: uploadedImage }),
       });
       const data = await res.json();
+      console.log("[smart-lens] response:", data);
       if (data.success) {
         setLensResult(data.results);
       } else {
-        alert("Lỗi phân tích hình ảnh từ AI!");
+        alert(
+          `Lỗi phân tích hình ảnh: ${data.error || "Không rõ nguyên nhân"}`,
+        );
       }
     } catch (e) {
       console.error("Smart Lens Error:", e);
-      alert("Không thể kết nối với dịch vụ AI!");
+      alert(`Không thể kết nối với dịch vụ AI: ${e}`);
     } finally {
       setIsScanning(false);
       setIsLensAnalyzing(false);
@@ -172,8 +175,17 @@ export default function PostItemModal({
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProdName || !newProdPrice || !newProdDescription) {
-      alert("Vui lòng điền đầy đủ các thông tin bắt buộc!");
+    if (
+      !newProdName ||
+      !newProdPrice ||
+      !newProdDescription ||
+      !newProdCategory ||
+      !newProdCondition
+    ) {
+      alert(
+        "Vui lòng điền đầy đủ các thông tin bắt buộc (tên, danh mục, tình trạng, giá, mô tả)!",
+      );
+
       return;
     }
 
@@ -351,15 +363,14 @@ export default function PostItemModal({
                     onClick={() => {
                       // Clear all form fields so Step 2 opens completely blank
                       setNewProdName("");
-                      setNewProdCategory(CATEGORIES[0] || "Sách & Giáo trình");
-                      setNewProdCondition(
-                        CONDITIONS[2] || "Còn mới 90% (Xài kỹ, đẹp)",
-                      );
+                      setNewProdCategory("");
+                      setNewProdCondition("");
                       setNewProdPrice("");
                       setNewProdOriginalPrice("");
                       setNewProdDescription("");
                       setManualSelectedFile(null);
                       setManualImagePreview(null);
+                      setPricingAnalysis(null);
                       setIsManualMode(true);
                       setPostStep(2);
                     }}
@@ -459,13 +470,18 @@ export default function PostItemModal({
                           Mô tả & Tình trạng AI đọc được
                         </span>
                         <p className="text-stone-700 mt-1 leading-relaxed text-[11px] line-clamp-3">
-                          {lensResult.description || lensResult.condition || "Không có mô tả chi tiết."}
+                          {lensResult.description ||
+                            lensResult.condition ||
+                            "Không có mô tả chi tiết."}
                         </p>
                       </div>
                       {lensResult.tags && lensResult.tags.length > 0 && (
                         <div className="col-span-2 flex flex-wrap gap-1 mt-1">
                           {lensResult.tags.map((t: string) => (
-                            <span key={t} className="bg-rose-100/50 text-rose-700 text-[9px] px-1.5 py-0.5 rounded font-medium">
+                            <span
+                              key={t}
+                              className="bg-rose-100/50 text-rose-700 text-[9px] px-1.5 py-0.5 rounded font-medium"
+                            >
                               #{t}
                             </span>
                           ))}
@@ -499,8 +515,10 @@ export default function PostItemModal({
                           if (matchedCond) setNewProdCondition(matchedCond);
                         }
                         // Use description from AI if available
-                        setNewProdDescription(lensResult.description || lensResult.condition || "");
-                        
+                        setNewProdDescription(
+                          lensResult.description || lensResult.condition || "",
+                        );
+
                         if (uploadedImage) {
                           setNewProdImage(uploadedImage);
                         }
@@ -563,9 +581,15 @@ export default function PostItemModal({
                 </label>
                 <select
                   value={newProdCategory}
+                  required
                   onChange={(e) => setNewProdCategory(e.target.value)}
-                  className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
+                  className={`w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none ${!newProdCategory ? "text-stone-400" : ""}`}
                 >
+                  {isManualMode && (
+                    <option value="" disabled>
+                      — Chọn danh mục —
+                    </option>
+                  )}
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -580,9 +604,15 @@ export default function PostItemModal({
                 </label>
                 <select
                   value={newProdCondition}
+                  required
                   onChange={(e) => setNewProdCondition(e.target.value)}
-                  className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
+                  className={`w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none ${!newProdCondition ? "text-stone-400" : ""}`}
                 >
+                  {isManualMode && (
+                    <option value="" disabled>
+                      — Chọn tình trạng —
+                    </option>
+                  )}
                   {CONDITIONS.map((cond) => (
                     <option key={cond} value={cond}>
                       {cond}
@@ -658,8 +688,9 @@ export default function PostItemModal({
                     )}
                   </button>
                   <p className="text-[10px] text-stone-500 mt-2">
-                    Dựa trên tên vật phẩm và tình trạng, Gemini sẽ gợi ý khoảng
-                    định giá thanh lý tốt nhất.
+                    {!newProdName
+                      ? "Nhập tên sản phẩm trước để kích hoạt phân tích AI."
+                      : "Dựa trên tên vật phẩm và tình trạng, Gemini sẽ gợi ý khoảng định giá thanh lý tốt nhất."}
                   </p>
                 </div>
               ) : (
