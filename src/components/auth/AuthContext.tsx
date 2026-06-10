@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 export interface UserProfile {
   id: string;
@@ -11,7 +17,8 @@ export interface UserProfile {
   universityShortName?: string;
   universityCity?: string;
   studentEmail?: string;
-  isStudentVerified: boolean;
+  isStudentVerified: boolean; // Tầng 1: xác thực email @edu.vn
+  isTrustedVerified: boolean; // Tầng 2: xác thực thẻ SV qua Gemini OCR
   rating: number;
   reviewCount: number;
 }
@@ -20,8 +27,15 @@ interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
   token: string | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  register: (email: string, password: string, displayName: string) => Promise<{ success: boolean; message: string }>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; message: string }>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateUserDirectly: (updatedUser: UserProfile) => void;
@@ -29,7 +43,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -49,8 +65,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await fetch("/api/auth/me", {
         headers: {
-          Authorization: `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       });
       const data = await response.json();
       if (data.success && data.user) {
@@ -72,33 +88,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
       const data = await response.json();
       if (data.success && data.token && data.user) {
         localStorage.setItem("unishare_token", data.token);
         setToken(data.token);
         setUser(data.user);
-        return { success: true, message: data.message || "Đăng nhập thành công!" };
+        return {
+          success: true,
+          message: data.message || "Đăng nhập thành công!",
+        };
       } else {
-        return { success: false, message: data.message || "Thông tin đăng nhập không hợp lệ!" };
+        return {
+          success: false,
+          message: data.message || "Thông tin đăng nhập không hợp lệ!",
+        };
       }
     } catch (err: any) {
       console.error("Login API error:", err);
-      return { success: false, message: "Không thể kết nối đến máy chủ. Vui lòng thử lại!" };
+      return {
+        success: false,
+        message: "Không thể kết nối đến máy chủ. Vui lòng thử lại!",
+      };
     }
   };
 
-  const register = async (email: string, password: string, displayName: string) => {
+  const register = async (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => {
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password, displayName })
+        body: JSON.stringify({ email, password, displayName }),
       });
       const data = await response.json();
       if (data.success) {
@@ -106,11 +135,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       return {
         success: false,
-        message: data.message || "Registration failed."
+        message: data.message || "Registration failed.",
       };
     } catch (err: any) {
       console.error("Register API error:", err);
-      return { success: false, message: "Không thể kết nối kết nối máy chủ để đăng ký!" };
+      return {
+        success: false,
+        message: "Không thể kết nối kết nối máy chủ để đăng ký!",
+      };
     }
   };
 
@@ -127,8 +159,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await fetch("/api/auth/me", {
         headers: {
-          Authorization: `Bearer ${activeToken}`
-        }
+          Authorization: `Bearer ${activeToken}`,
+        },
       });
       const data = await response.json();
       if (data.success && data.user) {
@@ -153,7 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         logout,
         refreshUser,
-        updateUserDirectly
+        updateUserDirectly,
       }}
     >
       {children}

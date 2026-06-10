@@ -35,6 +35,7 @@ interface MarketplaceSpaceProps {
   savedProductIds: Record<string, boolean>;
   onToggleSave: (id: string) => void;
   onReportProduct?: (product: Product, reason: string) => Promise<void>;
+  onOpenPostModal?: () => void;
 }
 
 const CONDITION_SHORT: Record<string, string> = {
@@ -60,6 +61,7 @@ export default function MarketplaceSpace({
   savedProductIds,
   onToggleSave,
   onReportProduct,
+  onOpenPostModal,
 }: MarketplaceSpaceProps) {
   // Filters State
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
@@ -153,38 +155,17 @@ export default function MarketplaceSpace({
 
   // Visual/Modals State
   const [isLensOpen, setIsLensOpen] = useState(false);
-  const [isPostOpen, setIsPostOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("Sản phẩm không đúng hiện trạng thực tế");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-  const [postStep, setPostStep] = useState(1);
   const [isScanning, setIsScanning] = useState(false);
   const [selectedDetailProd, setSelectedDetailProd] = useState<Product | null>(null);
-  
-  // New Product Form State
-  const [newProdName, setNewProdName] = useState("");
-  const [newProdCategory, setNewProdCategory] = useState(CATEGORIES[0]);
-  const [newProdPrice, setNewProdPrice] = useState("");
-  const [newProdOriginalPrice, setNewProdOriginalPrice] = useState("");
-  const [newProdCondition, setNewProdCondition] = useState(CONDITIONS[0]);
-  const [newProdDescription, setNewProdDescription] = useState("");
-  const [newProdImage, setNewProdImage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Smart Lens AI Upload State
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [lensResult, setLensResult] = useState<any | null>(null);
   const [isLensAnalyzing, setIsLensAnalyzing] = useState(false);
-
-  // Reset posting step and AI lens results when modal is toggled
-  useEffect(() => {
-    if (isPostOpen) {
-      setPostStep(1);
-      setUploadedImage(null);
-      setLensResult(null);
-    }
-  }, [isPostOpen]);
 
   useEffect(() => {
     if (!isReportModalOpen) {
@@ -305,44 +286,6 @@ export default function MarketplaceSpace({
     }
   };
 
-  const handlePostSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProdName || !newProdPrice) {
-      alert("Vui lòng điền tên và giá bán!");
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        name: newProdName,
-        category: newProdCategory,
-        price: Number(newProdPrice),
-        originalPrice: newProdOriginalPrice ? Number(newProdOriginalPrice) : undefined,
-        condition: newProdCondition,
-        description: newProdDescription,
-        images: newProdImage ? [newProdImage] : undefined,
-        author: "Nguyễn Thu Hạ (Bạn)",
-        school: isStudentVerified ? "Đại học Mở Hà Nội" : "Chưa xác thực"
-      };
-
-      await onAddProduct(payload);
-      
-      // Reset form variables
-      setNewProdName("");
-      setNewProdPrice("");
-      setNewProdOriginalPrice("");
-      setNewProdDescription("");
-      setNewProdImage("");
-      setIsPostOpen(false);
-    } catch (e) {
-      console.error(e);
-      alert("Đăng bán tin thất bại!");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="space-y-6" id="marketplace-space">
       {/* Search Header Banner */}
@@ -366,7 +309,7 @@ export default function MarketplaceSpace({
           </button>
 
           <button 
-            onClick={() => setIsPostOpen(true)}
+            onClick={() => onOpenPostModal && onOpenPostModal()}
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl shadow-sm text-sm font-medium transition cursor-pointer"
             id="btn-post-product"
           >
@@ -590,7 +533,7 @@ export default function MarketplaceSpace({
           
           <button 
             type="button" 
-            onClick={() => setIsPostOpen(true)}
+            onClick={() => onOpenPostModal && onOpenPostModal()}
             className="mt-4 text-[11px] font-medium text-stone-400 hover:text-rose-600 transition underline underline-offset-2 cursor-pointer"
           >
             Hoặc đăng bán thứ bạn cần tìm?
@@ -974,354 +917,6 @@ export default function MarketplaceSpace({
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* MODAL 2: POST NEW LISTING (2-STEP QUICK POST WIZARD) */}
-      {isPostOpen && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-0 md:p-4 animate-fadeIn" id="post-modal">
-          <form 
-            onSubmit={handlePostSubmit}
-            className="bg-white w-full h-full md:h-auto md:max-h-[90vh] md:max-w-xl md:rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-          >
-            {/* Header */}
-            <div className="bg-rose-600 p-4 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="w-5 h-5 fill-rose-100" />
-                <h3 className="font-semibold text-base font-display">Đăng Bán Tin - Quick Post Wizard</h3>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setIsPostOpen(false)}
-                className="text-white hover:text-white/80 font-bold text-lg cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Stepper progress indicator */}
-            <div className="bg-stone-50 border-b border-stone-150 py-3.5 px-6 flex items-center justify-center gap-6 text-xs text-stone-500 font-bold shrink-0 select-none">
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black border transition-colors ${
-                  postStep === 1 
-                    ? "bg-rose-50 border-rose-600 text-rose-600" 
-                    : "bg-emerald-500 border-emerald-500 text-white"
-                }`}>
-                  {postStep > 1 ? "✓" : "1"}
-                </div>
-                <span className={postStep === 1 ? "text-rose-600 font-black" : "text-emerald-600 font-extrabold"}>Ảnh sản phẩm</span>
-              </div>
-              <span className="text-stone-300">→</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black border transition-colors ${
-                  postStep === 2 
-                    ? "bg-rose-50 border-rose-600 text-rose-600" 
-                    : "border-stone-300 text-stone-450"
-                }`}>
-                  2
-                </div>
-                <span className={postStep === 2 ? "text-rose-600 font-black" : "text-stone-400 font-semibold"}>Thông tin chi tiết</span>
-              </div>
-            </div>
-
-            {/* Active wizard display */}
-            {postStep === 1 ? (
-              /* STEP 1: UPLOAD ZONE */
-              <div className="p-6 overflow-y-auto space-y-5 flex-1 text-sm text-stone-850 flex flex-col justify-start">
-                {!uploadedImage ? (
-                  <div className="space-y-4 my-auto">
-                    <label 
-                      htmlFor="wizard-file-upload"
-                      className="flex flex-col items-center justify-center border-2 border-dashed border-stone-250 hover:border-rose-450 hover:bg-rose-50/20 rounded-2xl p-8 text-center cursor-pointer transition-all gap-3"
-                    >
-                      <Camera className="w-10 h-10 text-stone-300" />
-                      <div>
-                        <span className="font-bold text-stone-800 block text-sm">Chụp hoặc tải ảnh lên</span>
-                        <span className="text-stone-400 text-xs mt-1 block">AI sẽ tự nhận diện và điền thông tin</span>
-                      </div>
-                      <input
-                        id="wizard-file-upload"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                    <div className="text-center pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setPostStep(2)}
-                        className="text-stone-400 text-sm underline hover:text-stone-600 transition cursor-pointer font-medium"
-                      >
-                        Tự nhập thủ công →
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    <div className="relative max-w-xs mx-auto aspect-square rounded-2xl overflow-hidden shadow-xs border border-stone-200 bg-stone-50">
-                      <img 
-                        src={uploadedImage} 
-                        alt="Preview" 
-                        loading="lazy"
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUploadedImage(null);
-                          setLensResult(null);
-                        }}
-                        className="absolute top-2.5 right-2.5 bg-black/60 hover:bg-black/85 text-white p-1 rounded-full border border-white/20 transition cursor-pointer"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {!lensResult && (
-                      <div className="space-y-3 text-center">
-                        <button
-                          type="button"
-                          onClick={handleSmartLensAnalysis}
-                          disabled={isLensAnalyzing}
-                          className="w-full max-w-xs bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 mx-auto shadow-md"
-                        >
-                          {isLensAnalyzing ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>AI Đang Phân Tích Hình Ảnh...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-3.5 h-3.5 fill-white" />
-                              <span>Phân Tích Bằng AI</span>
-                            </>
-                          )}
-                        </button>
-                        <p className="text-[11px] text-stone-400 max-w-[280px] mx-auto leading-relaxed">
-                          Hệ thống sẽ chạy mô hình Gemini để tối ưu hóa việc phân loại nhãn mục, giá trị đề cập thanh lý đề xuất tự động.
-                        </p>
-                      </div>
-                    )}
-
-                    {lensResult && (
-                      <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-4 space-y-3 max-w-sm mx-auto text-left animate-fadeIn">
-                        <div className="flex items-center gap-1.5 pb-2 border-b border-rose-100">
-                          <Sparkles className="w-3.5 h-3.5 text-rose-600 fill-rose-100 animate-pulse" />
-                          <span className="text-rose-700 font-extrabold text-xs">AI Gợi Ý Thành Công!</span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <span className="text-[10px] text-stone-400 font-semibold block uppercase">Tên gợi ý</span>
-                            <span className="font-bold text-stone-850 block mt-0.5 truncate">{lensResult.name}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-stone-400 font-semibold block uppercase">Danh mục</span>
-                            <span className="font-bold text-stone-850 block mt-0.5 truncate">{lensResult.category}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-stone-400 font-semibold block uppercase">Tình trạng</span>
-                            <span className="font-bold text-stone-850 block mt-0.5 truncate">{lensResult.condition}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-stone-400 font-semibold block uppercase">Giá đề xuất</span>
-                            <span className="font-bold text-rose-600 block mt-0.5">{(lensResult.suggestedPrice || 50000).toLocaleString("vi-VN")}đ</span>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewProdName(lensResult.name || "");
-                            if (lensResult.category && CATEGORIES.includes(lensResult.category)) {
-                              setNewProdCategory(lensResult.category);
-                            }
-                            if (lensResult.suggestedPrice) {
-                              setNewProdPrice(String(lensResult.suggestedPrice));
-                            }
-                            if (lensResult.condition) {
-                              const matchedCond = CONDITIONS.find(c => c.toLowerCase().includes(lensResult.condition.toLowerCase()) || lensResult.condition.toLowerCase().includes(c.toLowerCase()));
-                              if (matchedCond) setNewProdCondition(matchedCond);
-                            }
-                            if (lensResult.description) {
-                              setNewProdDescription(lensResult.description);
-                            }
-                            if (uploadedImage) {
-                              setNewProdImage(uploadedImage);
-                            }
-                            setPostStep(2);
-                          }}
-                          className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer text-center block mt-2 shadow-sm"
-                        >
-                          Dùng thông tin này →
-                        </button>
-                      </div>
-                    )}
-
-                    {!lensResult && !isLensAnalyzing && (
-                      <div className="text-center pt-2">
-                        <button
-                          type="button"
-                          onClick={() => setUploadedImage(null)}
-                          className="text-stone-500 hover:text-stone-800 text-xs font-semibold cursor-pointer underline"
-                        >
-                          Chụp / Tải ảnh khác
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* STEP 2: FORM DETAILS */
-              <div className="p-6 overflow-y-auto space-y-4 flex-1 text-sm text-stone-850 animate-fadeIn">
-                <div className="space-y-1.5">
-                  <span className="text-emerald-600 font-bold text-[10px] uppercase flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                    Đã tối ưu hóa thông tin bằng AI
-                  </span>
-                  <label className="text-stone-700 font-semibold block text-left">Tên sản phẩm muốn thanh lý *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ví dụ: Giáo trình toán cao cấp 1, Ấm đun nước siêu tốc..."
-                    value={newProdName}
-                    onChange={(e) => setNewProdName(e.target.value)}
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-stone-700 font-semibold block text-left">Danh mục *</label>
-                    <select
-                      value={newProdCategory}
-                      onChange={(e) => setNewProdCategory(e.target.value)}
-                      className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
-                    >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-stone-700 font-semibold block text-left">Tình trạng vật phẩm *</label>
-                    <select
-                      value={newProdCondition}
-                      onChange={(e) => setNewProdCondition(e.target.value)}
-                      className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
-                    >
-                      {CONDITIONS.map((cond) => (
-                        <option key={cond} value={cond}>{cond}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-stone-700 font-semibold block text-left">Giá bán thanh lý (VND) *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="Ví dụ: 45000"
-                      value={newProdPrice}
-                      onChange={(e) => setNewProdPrice(e.target.value)}
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-stone-700 font-semibold block text-left">Giá mua mới gốc (VND)</label>
-                    <input
-                      type="number"
-                      placeholder="Ví dụ: 120000"
-                      value={newProdOriginalPrice}
-                      onChange={(e) => setNewProdOriginalPrice(e.target.value)}
-                      className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:ring-1 focus:ring-rose-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-stone-700 font-semibold block text-left">Mô tả chi tiết và tình trạng *</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="Mô tả cụ thể để sinh viên biết: có rách trang, xước màn hình, chỗ nhận hàng ở cổng trường HOU..."
-                    value={newProdDescription}
-                    onChange={(e) => setNewProdDescription(e.target.value)}
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl resize-none focus:ring-1 focus:ring-rose-500 outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-stone-700 font-semibold block text-left">Link ảnh vật lý (URL hoặc bỏ trống)</label>
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/your-image"
-                    value={newProdImage}
-                    onChange={(e) => setNewProdImage(e.target.value)}
-                    className="w-full p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-1 focus:ring-rose-500 outline-none"
-                  />
-                </div>
-
-                {!isStudentVerified && (
-                  <div className="bg-amber-50 border border-amber-205 text-amber-800 p-3 rounded-xl flex gap-2.5 text-xs text-left animate-fadeIn">
-                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                    <div>
-                      <span className="font-bold block text-amber-900">Tài khoản chưa được kiểm chứng sinh viên!</span>
-                      Tin đăng sẽ thiếu nhãn "SV Verified". Hãy tiến hành <button type="button" onClick={() => { setIsPostOpen(false); onTriggerVerification(); }} className="underline font-bold text-rose-600 cursor-pointer">Xác thực bằng Thẻ sinh viên</button> để nâng cao uy tín.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Footer buttons control depending on postStep */}
-            <div className="bg-stone-50 px-4 py-3.5 border-t border-stone-200 flex justify-between items-center shrink-0">
-              {postStep === 2 ? (
-                <button
-                  type="button"
-                  onClick={() => setPostStep(1)}
-                  className="bg-white hover:bg-stone-100 text-stone-600 border border-stone-300 py-1.5 px-4 rounded-xl text-xs font-semibold cursor-pointer transition active:scale-95"
-                >
-                  ← Quay lại
-                </button>
-              ) : (
-                <div />
-              )}
-              
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsPostOpen(false)}
-                  className="bg-white hover:bg-stone-100 text-stone-600 border border-stone-300 py-1.5 px-4 rounded-xl text-xs font-semibold cursor-pointer transition"
-                >
-                  Hủy bỏ
-                </button>
-
-                {postStep === 2 && (
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-rose-600 hover:bg-rose-700 text-white py-1.5 px-5 rounded-xl text-xs font-semibold cursor-pointer flex items-center gap-1 shadow-md transition active:scale-95"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Đang đăng tin...
-                      </>
-                    ) : (
-                      "Đăng Tin Bán"
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          </form>
         </div>
       )}
 

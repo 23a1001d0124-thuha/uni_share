@@ -1,4 +1,6 @@
 const UNIVERSITY_DOMAINS: Record<string, { name: string; shortName: string; city: string }> = {
+  // 🧪 Test domain (xóa khi deploy production)
+  "gmail.com": { name: "Test - Gmail (Dev Only)", shortName: "TEST", city: "Hà Nội" },
   // Hà Nội
   "st.ftu.edu.vn": { name: "Đại học Ngoại Thương", shortName: "FTU", city: "Hà Nội" },
   "ftu.edu.vn": { name: "Đại học Ngoại Thương", shortName: "FTU", city: "Hà Nội" },
@@ -7,6 +9,8 @@ const UNIVERSITY_DOMAINS: Record<string, { name: string; shortName: string; city
   "vnu.edu.vn": { name: "Đại học Quốc gia Hà Nội", shortName: "VNU", city: "Hà Nội" },
   "ulis.vnu.edu.vn": { name: "Đại học Ngoại ngữ - VNU", shortName: "ULIS", city: "Hà Nội" },
   "ou.edu.vn": { name: "Đại học Mở Hà Nội", shortName: "HOU", city: "Hà Nội" },
+  "students.hou.edu.vn": { name: "Đại học Mở Hà Nội", shortName: "HOU", city: "Hà Nội" },
+  "hou.edu.vn": { name: "Đại học Mở Hà Nội", shortName: "HOU", city: "Hà Nội" },
   "hnue.edu.vn": { name: "Đại học Sư phạm Hà Nội", shortName: "HNUE", city: "Hà Nội" },
   "ptit.edu.vn": { name: "Học viện Bưu chính Viễn thông", shortName: "PTIT", city: "Hà Nội" },
   "dav.edu.vn": { name: "Học viện Ngoại giao", shortName: "DAV", city: "Hà Nội" },

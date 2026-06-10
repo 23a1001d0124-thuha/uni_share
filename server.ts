@@ -1714,8 +1714,8 @@ Yêu cầu trả về cấu trúc JSON duy nhất:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
         systemInstruction: "Bạn là chuyên gia định giá tài sản cũ tiện ích cho sinh viên. Chỉ phản hồi chuỗi JSON chuẩn.",
@@ -1782,8 +1782,8 @@ Hãy trả về chuỗi JSON duy nhất sau:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
       }
@@ -1889,15 +1889,17 @@ Hãy phân tích hình ảnh này và đưa ra kết quả phân loại chuẩn 
   "category": string,          // Phải thuộc 1 trong 4 nhóm: "Sách & Giáo trình", "Thiết bị công nghệ", "Đồ dùng phòng trọ", "Đồ dùng cá nhân khác"
   "condition": string,         // Tình trạng trực quan ước tính (ví dụ: "Còn mới khoảng 90%", "Cũ xước nhẹ")
   "suggestedPrice": number,    // Giá trị ước lượng thanh lý phù hợp với sinh viên (VND)
+  "description": string,       // Mô tả ngắn gọn về sản phẩm, đặc điểm nhận dạng và công năng bằng tiếng Việt (2-3 câu).
   "tags": [string, string...]  // 4 từ khóa tìm kiếm liên quan không dấu và có dấu viết thường để nhập vào ô tìm kiếm sản phẩm.
 }`
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: { parts: [imgPart, textPart] },
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [imgPart, textPart] }],
       config: {
-        responseMimeType: "application/json"
+        responseMimeType: "application/json",
+        temperature: 0.2
       }
     });
 
@@ -1905,11 +1907,13 @@ Hãy phân tích hình ảnh này và đưa ra kết quả phân loại chuẩn 
     res.json({ success: true, results: parsed });
   } catch (error: any) {
     console.error("Gemini Smart Lens Error:", error);
+    // If it's a real error and we have AI, try to report what went wrong
     res.json({
       success: true,
       simulated: true,
+      errorInfo: error.message,
       results: {
-        name: "Món đồ sinh viên đa năng",
+        name: "Món đồ sinh viên đa năng (AI Lỗi)",
         category: "Đồ dùng cá nhân khác",
         condition: "Xem ảnh thực tế",
         suggestedPrice: 120000,

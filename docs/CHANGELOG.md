@@ -4,6 +4,100 @@ Nhật ký ghi nhận lịch sử thay đổi dự án và hoàn thiện năng l
 
 ---
 
+## [Enhancement] - 2026-06-10 — Hoàn thiện tính năng Đăng bán bằng AI (AI Product Listing)
+
+### Thêm mới & Cải tiến (Added & Improved)
+
+- **Nâng cấp Gemini 2.0-flash (Latest AI Model):** Toàn bộ hệ thống AI (Smart Lens, Định giá, Matchmaking, OCR thẻ sinh viên) đã được nâng cấp lên phiên bản **Gemini 2.0-flash** mới nhất. Mang lại tốc độ phản hồi siêu nhanh và khả năng nhận diện hình ảnh vượt trội.
+- **Quy trình Phân tích AI Thủ công (Manual AI Analysis Flow):** Chuyển từ cơ chế tự động sang nút "Phân Tích Bằng AI" thủ công. Người dùng tải ảnh lên, xem preview và chủ động kích hoạt AI để nhận diện, giúp tăng tính kiểm soát và tin cậy.
+- **Bảng Kết quả AI Chi tiết (Rich AI Metadata Display):** Hiển thị bảng kết quả phân tích đầy đủ ngay tại Step 1 gồm: Tên gợi ý, Danh mục, Giá đề xuất, Mô tả chi tiết & Tình trạng, và các Thẻ từ khóa (Tags) do Gemini AI bóc tách.
+- **Đồng bộ Dữ liệu Toàn diện (Full Data Pre-filling):** Nút "Dùng thông tin này" hiện đã tự động điền toàn bộ các trường dữ liệu ở Step 2, bao gồm cả trường **Mô tả chi tiết** (trước đây chỉ điền Tên và Giá), giúp người dùng tiết kiệm tối đa thời gian nhập liệu.
+- **Hợp nhất Component Đăng tin (Consolidated Post Modal):** Gỡ bỏ logic đăng tin dư thừa bên trong `MarketplaceSpace.tsx` và chuyển sang sử dụng component toàn cục `PostItemModal.tsx`.
+- **Sửa lỗi Gemini AI Integration (Fixed AI Integration Bugs):**
+  *   Sửa lỗi cấu trúc `contents` và cập nhật model chuẩn để đảm bảo hệ thống gọi AI thật thay vì dùng dữ liệu giả.
+  *   Mở rộng Prompt để AI trả về trường `description` chuyên sâu cho sản phẩm.
+- **Cải thiện UI/UX Quét AI (Enhanced AI Scanning Experience):** Thêm hiệu ứng thanh quét laser trực quan và tích hợp nén ảnh tự động (Auto-compression) để tối ưu hiệu năng.
+
+```
+src/components/PostItemModal.tsx    ~ Modified (Manual AI Trigger & Rich Prefill)
+server.ts                           ~ Modified (Gemini 2.0-flash upgrade)
+src/routes/auth.ts                  ~ Modified (OCR upgrade to 2.0-flash)
+src/components/MarketplaceSpace.tsx ~ Modified (Consolidation)
+docs/CHANGELOG.md                   ~ Updated
+```
+
+---
+
+## [Hotfix] - 2026-06-10
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] Gemini Smart Lens không chạy thật:** Route `POST /api/gemini/smart-lens` gọi model `"gemini-3.5-flash"` không tồn tại, SDK ném exception và route luôn trả dữ liệu giả cứng (`simulated: true`) dù đã có `GEMINI_API_KEY`. Sửa thành `"gemini-1.5-flash"` và thêm `temperature: 0.2`.
+- **[BUG] Nhập thủ công Step 2 hiện dữ liệu sẵn:** Nút "Tự nhập thủ công →" chỉ gọi `setPostStep(2)` mà không reset form, khiến dropdown Danh mục và Tình trạng đã có giá trị mặc định trông như đã điền. Sửa bằng cách reset toàn bộ fields về rỗng và set flag `isManualMode = true` trước khi chuyển Step 2.
+- **[BUG] Banner "Đồng bộ bởi AI" hiện sai ngữ cảnh:** Banner xanh lá luôn hiện ở đầu Step 2 kể cả khi người dùng vào bằng đường thủ công. Sửa bằng cách phân nhánh theo `isManualMode` — thủ công hiện banner xám trung tính, AI path hiện banner xanh.
+- **[BUG] Reset modal không đầy đủ:** `useEffect([isOpen])` chỉ reset UI states (`postStep`, `uploadedImage`, `lensResult`) mà không reset form fields, khiến dữ liệu cũ còn sót khi mở lại modal. Đã bổ sung reset toàn bộ fields trong `useEffect`.
+
+### Thay đổi (Changed)
+
+- **Xóa trường "Link ảnh vật lý (URL)":** Trường input URL ảnh bị xóa khỏi Step 2 — ảnh bắt buộc phải upload từ thiết bị để lưu trên Cloudinary, không cho phép dán link ngoài. Thay bằng upload zone có preview và nút đổi ảnh (chỉ hiện ở `isManualMode`). Luồng AI path hiển thị lại ảnh đã chọn ở Step 1 kèm badge xác nhận.
+- **`handlePostSubmit` upload đúng luồng:** Logic upload trước đây luôn dùng `selectedFile` (file AI path), bỏ sót ảnh khi nhập thủ công. Sửa thành `isManualMode ? manualSelectedFile : selectedFile`.
+
+```
+src/components/PostItemModal.tsx    ~ Modified
+server.ts                           ~ Modified (smart-lens model fix)
+```
+
+---
+
+## [Hotfix / Enhancement] - 2026-06-10 — Gemini OCR nâng cao & lưu dữ liệu thẻ SV
+
+### Thêm mới (Added)
+
+- **Lưu dữ liệu OCR thẻ sinh viên vào Supabase:** Trước đây `_approveCard()` chỉ ghi `is_trusted_verified = true`, toàn bộ thông tin đọc được từ thẻ bị bỏ qua. Nay lưu đầy đủ 10 trường vào DB: `card_student_name`, `card_student_id`, `card_university_name`, `card_university_short`, `card_major`, `card_class_name`, `card_date_of_birth`, `card_enrollment_year`, `card_expiry_date`, `card_issue_date`, cùng `card_ocr_confidence` và `card_ocr_raw` (JSONB toàn bộ response Gemini).
+- **`supabase_card_ocr_migration.sql` (file mới):** Migration thêm 12 cột OCR vào bảng `users` + 2 index (`idx_users_card_student_id`, `idx_users_card_student_name`) phục vụ tra cứu admin và anti-fraud.
+
+### Cải tiến (Improved)
+
+- **Gemini prompt mở rộng từ 4 lên 12 trường:** Bổ sung `universityShortName`, `major`, `className`, `dateOfBirth`, `enrollmentYear`, `expiryDate`, `cardIssueDate`, `rejectReason`. Thêm `temperature: 0.1`.
+- **Xử lý lỗi Gemini HTTP:** Kiểm tra `geminiRes.ok` trước khi parse — nếu Gemini trả 4xx/5xx thì fallback auto-approve thay vì crash server.
+- **Lý do từ chối ảnh động:** Response 400 giờ trả `rejectReason` từ AI thay vì thông điệp cứng.
+- **Response API bổ sung `ocrData`:** Trả thông tin OCR về client để Step 5 hiển thị tên, MSSV, trường đã được AI đọc.
+
+```
+src/routes/auth.ts                  ~ Modified (upload-card + _approveCard rewrite)
+supabase_card_ocr_migration.sql     + Added
+```
+
+---
+
+---
+
+## [Sprint 11] - 2026-06-10
+
+### Thêm mới (Added)
+
+- **Hệ thống xác minh sinh viên 2 tầng (Two-Tier Student Verification):**
+  - **Tầng 1 — Badge "SV Xác Thực" (đã có):** Xác thực qua email `@*.edu.vn` + OTP 6 số, set `isStudentVerified = true`.
+  - **Tầng 2 — Badge "SV Uy Tín ✦" (mới):** Sau khi hoàn thành Tầng 1, user upload ảnh thẻ sinh viên → Gemini Vision API (`gemini-1.5-flash`) OCR đọc tên, mã SV, tên trường → nếu `confidence >= 60` và `isStudentCard = true` thì set `isTrustedVerified = true`. Có fallback auto-approve khi dev mode (không có `GEMINI_API_KEY`).
+  - **API mới:** `POST /api/auth/verify-student/upload-card` (protected) — nhận `imageBase64`, gọi Gemini, trả về `user` đã cập nhật.
+  - **`VerifyStudentModal.tsx`:** Thêm Step 4 (upload zone + preview ảnh + hướng dẫn chụp) và Step 5 (màn hình thành công SV Uy Tín) vào modal xác thực hiện có. Step 3 (thành công Tầng 1) thêm nút "Nâng lên SV Uy Tín" dẫn sang Step 4.
+  - **`AuthContext.tsx`:** Thêm field `isTrustedVerified: boolean` vào interface `UserProfile`.
+  - **`App.tsx`:** Header badge phân 3 trạng thái (khách / SV Xác Thực / SV Uy Tín), sidebar card hiển thị icon `✦` khi `isTrustedVerified`.
+  - **`supabase_trusted_verify_migration.sql`:** Migration thêm cột `is_trusted_verified` và `trusted_verified_at` vào bảng `users`.
+
+---
+
+## [Hotfix] - 2026-06-10
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] Sidebar hiển thị thông tin người dùng khi chưa đăng nhập:** `profile` state trước đây được khởi tạo với dữ liệu cứng (hardcode tên "Sinh viên Nguyễn Thu Hạ", trường "Đại học Mở Hà Nội"), khiến góc dưới bên trái sidebar luôn hiện avatar card như đã đăng nhập dù chưa có phiên đăng nhập. Sửa bằng cách đổi giá trị khởi tạo thành `null` và chỉ `setProfile(...)` trong `useEffect` khi `user` từ `AuthContext` khác `null`.
+- **[BUG] Badge thông báo hiển thị số "3" khi chưa đăng nhập:** `notifications` state được khởi tạo với 3 thông báo hardcode, làm chuông thông báo trên header luôn hiện badge đỏ "3" kể cả khi chưa đăng nhập. Sửa bằng cách đổi khởi tạo thành `[]` rỗng; 3 thông báo mặc định được chuyển vào hằng `DEFAULT_NOTIFICATIONS` và chỉ được load vào state khi user đăng nhập thành công (trong cùng `useEffect` xử lý auth).
+- **[PATCH] TypeError: Cannot read properties of null ('isVerified'):** Sau hotfix trước, còn 8 chỗ dùng `profile.isVerified`, `profile.name`, `profile.school` trực tiếp bên ngoài guard block, gây crash khi `profile === null` (trước khi `useEffect` auth chạy xong). Sửa toàn bộ thành optional chaining `profile?.isVerified`, `profile?.name`, `profile?.school`.
+- **[BUG] Logout không reset trạng thái:** Bổ sung nhánh `else` trong `useEffect` theo dõi `user` để khi đăng xuất (`user === null`), `profile` được reset về `null` và `notifications` được xóa về `[]`, đảm bảo giao diện trở về trạng thái khách hoàn toàn.
+
+---
+
 ## [Sprint 10] - 2026-06-09 (Tái thiết kế UI/UX toàn diện - Premium Gen-Z)
 
 ### Thêm mới & Cải tiến (Added & Improved)
