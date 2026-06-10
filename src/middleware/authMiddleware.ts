@@ -2,17 +2,16 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
-// JWT Secret from env fallback to a secure test string
 const JWT_SECRET = process.env.JWT_SECRET || "unishare_secret_key_development_2026";
 
-// Re-import or create lightweight client if configured
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
-const isSupabaseConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
-const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Lazy init — đọc env SAU khi dotenv.config() đã chạy ở server.ts
+function getSupabase() {
+  const url = process.env.SUPABASE_URL || "";
+  const key = process.env.SUPABASE_ANON_KEY || "";
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
-// In-Memory store import or sharing (can be accessed globally in node process)
-// We will assign a global map on `global` to share users between server and middleware
 if (!(global as any).inMemoryUsers) {
   (global as any).inMemoryUsers = [];
 }
@@ -33,9 +32,6 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-/**
- * Authentication check middleware
- */
 export async function authenticateToken(
   req: Request,
   res: Response,
@@ -58,6 +54,7 @@ export async function authenticateToken(
 
     let userProfile: any = null;
 
+    const supabase = getSupabase();
     if (supabase) {
       const { data, error } = await supabase
         .from("users")
@@ -76,19 +73,16 @@ export async function authenticateToken(
           universityCity: data.university_city,
           studentEmail: data.student_email,
           isStudentVerified: data.is_student_verified,
+          isTrustedVerified: data.is_trusted_verified || false,
           rating: data.rating ? Number(data.rating) : 5.0,
           reviewCount: data.review_count ? Number(data.review_count) : 0,
         };
       }
     }
 
-    // Fallback to in-memory users if not found in Supabase or Supabase is not configured
     if (!userProfile) {
-      const usersList = (global as any).inMemoryUsers || [];
-      const foundUser = usersList.find((u: any) => u.id === decoded.id);
-      if (foundUser) {
-        userProfile = foundUser;
-      }
+      const found = ((global as any).inMemoryUsers || []).find((u: any) => u.id === decoded.id);
+      if (found) userProfile = found;
     }
 
     if (!userProfile) {
@@ -96,12 +90,10 @@ export async function authenticateToken(
       return;
     }
 
-    // Attach to request
     (req as any).user = userProfile;
     next();
   } catch (err: any) {
     console.error("JWT authentication error:", err.message);
     res.status(403).json({ success: false, message: "Session xác thực đã hết hạn!" });
-    return;
   }
 }
