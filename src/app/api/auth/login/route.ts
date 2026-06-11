@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { supabase, JWT_SECRET } from "../../../lib/server-config";
+import { supabase, JWT_SECRET } from "../../../../lib/server-config";
 
 export async function POST(req: NextRequest) {
   try {

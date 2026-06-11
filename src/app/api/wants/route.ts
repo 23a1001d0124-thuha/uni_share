@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "../../../../lib/server-config";
+import { supabase } from "../../../lib/server-config";
 
 export async function GET() {
   if (!supabase) return NextResponse.json({ success: false, message: "DB error" }, { status: 500 });

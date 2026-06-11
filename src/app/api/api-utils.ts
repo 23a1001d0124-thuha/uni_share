@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "../../../lib/server-config";
+import { JWT_SECRET } from "../../lib/server-config";
 
 export async function getUserIdFromReq(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get("authorization");

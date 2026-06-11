@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromReq, errorResponse } from "../../api-utils";
-import { supabase } from "../../../lib/server-config";
+import { supabase } from "../../../../lib/server-config";
 
 export async function GET(req: NextRequest) {
   const userId = await getUserIdFromReq(req);

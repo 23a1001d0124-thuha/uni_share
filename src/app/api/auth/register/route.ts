@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { supabase } from "../../../lib/server-config";
+import { supabase } from "../../../../lib/server-config";
 
 export async function POST(req: NextRequest) {
   try {
