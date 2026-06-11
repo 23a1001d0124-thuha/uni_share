@@ -1,0 +1,19 @@
+{
+  "name": "UNI-SHARE",
+  "short_name": "UNI-SHARE",
+  "description": "Cho do cu sinh vien, giao dich noi bo truong hoc voi AI.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fff6f7",
+  "theme_color": "#e11d48",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

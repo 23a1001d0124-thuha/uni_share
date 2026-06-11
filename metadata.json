@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Remix: Uni-Share",
+  "description": "Nền tảng mua bán đồ cũ sinh viên tích hợp trí tuệ nhân tạo (AI) giúp tối ưu giá cả, tìm kiếm thông minh bằng hình ảnh và kết nối trao đổi tinder-style.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
