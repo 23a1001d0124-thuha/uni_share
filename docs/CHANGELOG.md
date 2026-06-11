@@ -1,5 +1,109 @@
 # PROJECT CHANGELOG (CHANGELOG.md)
 
+## [Hotfix] - 2026-06-11 — Phòng Thương Lượng Chat: Fix Toàn Diện Database & Real-time
+
+### Sửa lỗi (Fixed)
+
+- **[CRITICAL] Hardcode `buyer_id = "user_client_default"` trong toàn bộ luồng chat (`server.ts`):** Mọi phòng chat được tạo ra đều gán cứng `buyer_id` là một chuỗi giả, khiến tất cả người dùng chia sẻ cùng một dữ liệu chat, không phân biệt tài khoản. Đã xóa hoàn toàn hardcode, thay bằng `getUserIdFromReq(req)` đọc `userId` thật từ JWT Bearer token ở tất cả các endpoint: `GET /api/chats`, `POST /api/chats/find-or-create`, `POST /api/chats/:roomId/messages`.
+- **[CRITICAL] `assembleChatRoom` hardcode tên buyer là "Sinh viên Nguyễn Thu Hạ (Bạn)" (`server.ts`):** Header phòng chat và danh sách room luôn hiện tên cố định thay vì tên thật. Đã sửa `assembleChatRoom` để lookup `buyer_id` và `seller_id` từ bảng `users` (Supabase), resolve `display_name`, `university_short_name` cho cả hai phía.
+- **[CRITICAL] `POST /api/products` hardcode `authorId: "user_client_default"` (`server.ts`):** Sản phẩm được đăng không ghi nhận chủ sở hữu thật, khiến `assembleChatRoom` không thể tìm đúng seller khi tạo phòng chat. Đã fix: lấy `authorId` từ JWT token, đồng thời lookup `display_name` từ bảng `users` để làm `author` name thật.
+- **[CRITICAL] `handleAddNewProductListing` hardcode `authorId: "user_client_default"` (`App.tsx`):** Client gửi `authorId` sai lên server dù đã đăng nhập. Đã đổi thành `user?.id`, thêm `Authorization: Bearer <token>` header vào request POST sản phẩm.
+- **Seller không thấy phòng chat (`server.ts`):** `GET /api/chats` chỉ filter `buyer_id = userId`, khiến người bán không bao giờ thấy phòng chat của sản phẩm mình đăng. Đã sửa: fetch cả `buyer_id = userId` lẫn `seller_id = userId`, gộp và dedup trước khi trả về.
+- **Header chat luôn hiện tên seller dù ai đang xem (`server.ts` + `ChatWorkspace.tsx`):** Giao diện không phân biệt perspective người xem — buyer thấy seller nhưng seller cũng thấy... seller. Đã thêm tham số `viewerUserId` vào `assembleChatRoom`, server tính `viewerRole` (`"buyer"` hoặc `"seller"`) và trả field `seller` = đối phương của người đang xem. `ChatWorkspace` dùng `chatPartner` (derived từ `viewerRole`) để render header và avatar tin nhắn đúng.
+- **Người đăng sản phẩm tự mở chat mua chính sản phẩm của mình (`server.ts`):** `find-or-create` không kiểm tra `buyerId !== prod.authorId`. Đã thêm guard, trả `400` với message `"Bạn không thể nhắn tin hỏi mua sản phẩm của chính mình!"`.
+- **Seller không nhận được tin nhắn real-time (`App.tsx`):** Seller không có rooms trong state khi load app nên không bao giờ `join_room` qua socket. Đã thêm `useEffect` reload chat rooms ngay sau khi user đăng nhập, tự `join_room` tất cả rooms qua socket. Sau khi `find-or-create` thành công, client cũng `join_room` ngay lập tức.
+- **`new_message` socket handler mutate state trực tiếp (`App.tsx`):** Handler cũ `push()` trực tiếp vào array message, vi phạm immutability của React state. Đã tái cấu trúc: tạo `updatedRoom` object mới (`{...room, messages: [...room.messages, newMsg]}`), thay thế đúng index trong array.
+- **Data cũ `buyer_id = "user_client_default"` tồn đọng trong Supabase (`server.ts`):** Các lần seed trước đã nhét chat rooms giả vào DB. Đã thêm hàm `cleanupLegacyHardcodedChats()` tự động chạy khi server khởi động, xóa toàn bộ `chat_rooms` và `messages` liên quan có `buyer_id = "user_client_default"`.
+- **Seed chat rooms giả vào Supabase (`server.ts`):** Bước seed ban đầu nhét 2 phòng chat hardcode vào DB với `buyer_id = "user_client_default"`. Đã xóa bước seed này — phòng chat chỉ được tạo khi user thật bấm "Nhắn tin hỏi giá".
+- **`GET /api/chats` fallback về in-memory data chứa hardcode (`server.ts`):** Khi Supabase không trả kết quả, server fallback về biến `let chatRooms = [...]` in-memory chứa tên "Nguyễn Thu Hạ (Bạn)". Đã đổi fallback thành `chatRooms: []` — không bao giờ trả data giả.
+- **Next.js API route `GET /api/chats` không lọc theo user (`src/app/api/chats/route.ts`):** Route trả tất cả rooms cho mọi người. Đã thêm JWT decode để lấy `userId`, truyền vào `getChatsData(userId)`.
+- **`assembleChatRoom` trong `readOnlyApiData.ts` hardcode buyer name (`src/lib/readOnlyApiData.ts`):** Mirror của lỗi trên ở tầng Next.js routes. Đã thêm param `allUsers[]`, lookup tên buyer/seller từ bảng `users`.
+- **Thiếu Next.js API routes cho `find-or-create` và `[roomId]/messages`:** Các routes này chỉ tồn tại trong Express `server.ts`, không có file tương ứng trong `src/app/api/`. Đã tạo mới `src/app/api/chats/find-or-create/route.ts` và `src/app/api/chats/[roomId]/messages/route.ts` với đầy đủ JWT auth, Supabase lookup, kiểm tra quyền gửi tin.
+- **`isMe` trong ChatWorkspace so sánh với chuỗi `"user_client_default"` (`ChatWorkspace.tsx`):** Tin nhắn không phân biệt đúng/sai bên. Đã đổi thành so sánh với prop `currentUserId` (UUID thật từ `user.id`).
+- **Syntax error trong destructuring props `ChatWorkspace.tsx`:** Thiếu dấu phẩy sau `onLockInTransaction` khi thêm prop `currentUserId`. Đã fix.
+
+### Thêm mới (Added)
+
+- **`getUserIdFromReq(req)` helper (`server.ts`):** Hàm tiện ích đọc và verify JWT Bearer token từ `Authorization` header, trả về `userId` hoặc `null`. Được dùng tập trung ở tất cả chat endpoints thay vì lặp lại logic verify.
+- **`viewerRole` field trong ChatRoom response:** Server trả thêm `viewerRole: "buyer" | "seller"` trong mỗi room object để FE biết perspective người đang xem mà render đúng giao diện.
+- **`cleanupLegacyHardcodedChats()` (`server.ts`):** Hàm tự động dọn dẹp data cũ chạy một lần khi server khởi động, đảm bảo DB sạch trước khi người dùng bắt đầu tương tác.
+- **Reload chat rooms theo auth state (`App.tsx`):** `useEffect` lắng nghe thay đổi `user` — khi login sẽ fetch lại `/api/chats` với token và join tất cả rooms; khi logout sẽ clear `chatRooms` state.
+
+---
+
+## [Hotfix] - 2026-06-11 — Làm lại Xác Nhận Địa Chỉ & Thanh Toán COD / VNPay
+
+### Thêm mới (Added)
+
+- **Form xác nhận địa chỉ đầy đủ (S-ADDR-01):** Xây dựng lại toàn bộ Step B "Địa chỉ giao nhận" trong `CheckoutWizard.tsx`. Thêm chế độ chọn địa chỉ hai nhánh:
+  - **Preset ký túc xá / trường học:** Giữ lại 4 địa chỉ KTX mặc định với UI card chọn có highlight rõ ràng.
+  - **Địa chỉ tùy chỉnh:** Form đầy đủ gồm Họ tên người nhận, Số điện thoại, Tỉnh/Thành phố → Quận/Huyện → Phường/Xã (cascade dropdown tự động reset cấp dưới khi đổi cấp trên), Số nhà/tên đường, và Ghi chú tùy chọn.
+- **Validation địa chỉ thời gian thực (S-ADDR-02):** Tích hợp hàm `validateAddress()` kiểm tra từng trường khi `onBlur`, hiển thị lỗi inline với icon `AlertCircle`. Các rule: tên ≥ 3 ký tự, SĐT khớp regex `^(0|\+84)[0-9]{8,10}$`, tỉnh/quận/phường/đường đều bắt buộc. Nút "Chọn thanh toán" chặn nếu form còn lỗi.
+- **Preview địa chỉ tổng hợp (S-ADDR-03):** Hiện block xem trước địa chỉ đầy đủ (đường + phường + quận + tỉnh) ngay bên dưới form khi đã điền đủ, kèm tên và SĐT người nhận.
+- **Địa chỉ tóm tắt trên bước thanh toán (S-ADDR-04):** Bước C (Payment) hiển thị card tóm tắt địa chỉ giao nhận và thông tin người nhận để người dùng xác nhận trước khi hoàn tất.
+- **Thanh toán COD – Tiền mặt khi nhận hàng (S-PAY-COD):** Thay thế và nâng cấp tùy chọn COD cũ. Khi chọn COD hiện block hướng dẫn 4 bước rõ ràng (liên hệ xác nhận → kiểm tra hàng → trả tiền mặt → xác nhận hai chiều) kèm cảnh báo không trả tiền trước khi hài lòng với hàng. Nút xác nhận đổi nhãn thành "Đặt Hàng COD". Màn hình hoàn tất hiển thị "💵 Tiền mặt (COD)".
+- **Thanh toán VNPay – Cổng thanh toán trực tuyến (S-PAY-VNPAY):** Thay thế hoàn toàn tùy chọn MoMo bằng VNPay. Card thanh toán màu blue, hỗ trợ ATM nội địa / Visa / Mastercard / JCB / QR Code ngân hàng. Nút "Thanh toán qua VNPay ngay" mở cổng sandbox VNPay trong tab mới. Nút xác nhận đơn hàng bị **disabled** cho đến khi người dùng đã nhấn mở cổng VNPay, sau đó hiện trạng thái xanh xác nhận và unlock nút confirm.
+- **API Route VNPay server-side (`src/app/api/payment/vnpay/route.ts`):** Tạo mới endpoint xử lý thanh toán VNPay chuẩn v2.1.0:
+  - `POST /api/payment/vnpay`: Nhận `{ amount, orderId, orderInfo }`, tạo URL thanh toán ký **HMAC-SHA512** đúng chuẩn VNPay, trả về `{ paymentUrl, orderId }`.
+  - `GET /api/payment/vnpay`: Xử lý IPN / Return URL từ VNPay, xác minh chữ ký HMAC-SHA512, parse `vnp_ResponseCode` và trả kết quả. Đọc config từ env vars `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_URL`, `VNPAY_RETURN_URL`.
+
+### Cải tiến (Improved)
+
+- **Chỉ báo bước (Step Indicator) nâng cấp:** Các bước đã hoàn thành hiện icon `CheckCircle2` màu emerald thay vì chỉ đổi màu text, giúp phân biệt rõ bước hiện tại / đã xong / chưa đến.
+- **Order Summary sidebar phản ánh phương thức thanh toán:** Dòng "Phương thức" ở cột phải cập nhật theo thời gian thực khi người dùng chuyển đổi giữa StudentPay / VNPay / COD. Giảm giá StudentPay 15% chỉ áp dụng và hiển thị khi đang chọn StudentPay.
+- **Reset trạng thái đầy đủ khi kết thúc wizard:** `handleFinishWizard` reset toàn bộ form địa chỉ, addrMode, preset, vnpayRedirected, orderId (regenerate timestamp mới) để đảm bảo wizard luôn sạch khi bắt đầu lại.
+- **Màn hình hoàn tất bổ sung thông tin người nhận:** Block xác nhận đơn hàng trên Step D hiển thị thêm tên và SĐT người nhận (khi dùng địa chỉ tùy chỉnh) bên cạnh địa chỉ giao và phương thức thanh toán.
+
+### Thay đổi phá vỡ tương thích (Breaking Changes)
+
+- Tùy chọn thanh toán `"momo"` đã bị xóa khỏi union type `PaymentMethod`. Type mới: `"studentpay" | "vnpay" | "cod"`. Mọi nơi lưu trữ hoặc so sánh giá trị `"momo"` cần được cập nhật.
+
+---
+
+## [Hotfix] - 2026-06-11 — Real-time Socket.io cho tính năng Bản Tin SV
+
+### Thêm mới (Added)
+
+- **Real-time bình luận tức thì (`forum_new_comment`):** Server emit `io.emit("forum_new_comment", { postId, post })` ngay sau khi insert `forum_comments` thành công (cả nhánh Supabase lẫn in-memory fallback). Client lắng nghe event này và gọi `setForumPosts()` cập nhật đúng post tương ứng — bình luận mới hiện ngay trên màn hình mọi người đang xem mà không cần reload.
+- **Real-time bài đăng mới tức thì (`forum_new_post`):** Server emit `io.emit("forum_new_post", newPost)` sau khi insert bài thành công. Client prepend bài mới lên đầu feed, bỏ qua duplicate nếu chính người dùng đó vừa đăng. Nếu đang ở tab khác sẽ nhận push notification "Bản tin mới 📣".
+- **Badge "● Trực tiếp" trên header Bản Tin:** Indicator màu emerald nhấp nháy `animate-pulse` hiển thị cạnh tiêu đề để báo hiệu feed đang hoạt động real-time.
+- **Auto-scroll đến bình luận mới nhất:** `commentsEndRef` + `useEffect` theo dõi `commentCount` trong `ForumBoard` — mỗi khi comment mới đến qua socket, danh sách tự cuộn mượt xuống cuối.
+
+### Cải tiến (Improved)
+
+- **Cleanup socket đầy đủ trong `App.tsx`:** Bổ sung `newSocket.off("forum_new_comment")` và `newSocket.off("forum_new_post")` vào cleanup function của `useEffect` socket, tránh memory leak và duplicate listener khi component re-mount.
+
+---
+
+## [Hotfix] - 2026-06-11 — Hoàn thiện tính năng Bản Tin SV: database thực, xóa localStorage, fix hardcode
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] `handleUpvotePost` — fallback ghi localStorage:** Khi API upvote lỗi, handler cũ ghi kết quả vào `localStorage("uni_local_forum_posts")` thay vì giữ nguyên React state. Fix: áp dụng optimistic update trực tiếp lên state trước khi gọi API, sync lại với `data.upvotes` từ server nếu thành công. Xóa toàn bộ nhánh `localStorage.setItem`.
+- **[BUG] `handleJoinGroupPost` — fallback ghi localStorage + hardcode userId:** Handler cũ dùng hardcode `"user_client_default"` khi gọi API và ghi joined list vào `localStorage` khi lỗi. Fix: lấy `user.id` thật từ auth context, optimistic update state ngay lập tức, sync authoritative `joinedUsers` từ server response. Xóa toàn bộ nhánh localStorage.
+- **[BUG] `handlePublishForumPost` — fallback ghi localStorage + không truyền author thật:** Form đăng bài gửi `author` từ object newPost (do `ForumBoard` hardcode `"Nguyễn Thu Hạ (Bạn)"`), fallback khi lỗi ghi vào localStorage. Fix: truyền `user.displayName` và `user.universityName` từ auth context trực tiếp vào body POST. Fallback chỉ dùng optimistic local state (không localStorage).
+- **[BUG] `handleAddForumComment` — fallback ghi localStorage + dùng `profile.name` không đồng nhất:** Cũ dùng `profile?.name` (UserProfile từ settings) thay vì `user.displayName` (auth context). Fix: dùng `user.displayName` và `user.universityName` nhất quán. Optimistic append comment vào state ngay, sync authoritative `data.post` từ server sau. Xóa nhánh localStorage.
+- **[BUG] `fetchAllData` fallback đọc/ghi localStorage cho forum:** Khi Express unreachable, code cũ đọc `localStorage("uni_local_forum_posts")` trước, nếu không có mới dùng `INITIAL_FORUM_POSTS` rồi ghi vào localStorage. Fix: fallback thẳng về `INITIAL_FORUM_POSTS` static, không đọc/ghi localStorage.
+- **[BUG] `ForumBoard` hardcode `author: "Nguyễn Thu Hạ (Bạn)"` trong form submit:** `handlePublishSubmit` trong `ForumBoard.tsx` hardcode tên và trường. Fix: nhận prop `currentUser` từ App, dùng `currentUser.displayName` và `currentUser.universityName`.
+- **[BUG] `hasJoined` check dùng hardcode `"user_client_default"`:** Button "Đã đăng ký / Tham gia ngay" kiểm tra bằng string hardcode thay vì id user thật. Fix: dùng `currentUser?.id`.
+- **[BUG] Next.js App Router thiếu toàn bộ API routes cho forum write operations:** Chỉ có `GET /api/forum` tồn tại trong App Router. Các route `POST /api/forum`, `POST /api/forum/[id]/upvote`, `POST /api/forum/[id]/join`, `POST /api/forum/[id]/comments` hoàn toàn không có → mọi thao tác write khi deploy Next.js standalone (Vercel) đều 404. Fix: tạo mới 4 route handlers đầy đủ với Supabase integration.
+
+### Thêm mới (Added)
+
+- **`src/app/api/forum/route.ts` — thêm `POST` handler:** Nhận `{ title, tag, content, author, school }`, insert vào `forum_posts` Supabase. Trả `{ success, post }`.
+- **`src/app/api/forum/[id]/upvote/route.ts` _(mới)_:** `POST /api/forum/[id]/upvote` — đọc `upvotes` hiện tại từ Supabase, tăng 1, update, trả `{ success, upvotes }`.
+- **`src/app/api/forum/[id]/join/route.ts` _(mới)_:** `POST /api/forum/[id]/join` — nhận `userId`, toggle (thêm/xóa) trong mảng `joined_users` của Supabase, trả `{ success, joinedUsers }`.
+- **`src/app/api/forum/[id]/comments/route.ts` _(mới)_:** `POST /api/forum/[id]/comments` — insert vào `forum_comments`, tăng `comments_count` trên `forum_posts`, re-fetch và trả authoritative `{ success, comment, commentsCount, post }`.
+- **`supabase_forum_groupbuy_migration.sql` _(mới)_:** Migration `ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS` cho 5 cột còn thiếu phục vụ tính năng Gom Mua Chung: `target_members INTEGER`, `current_price BIGINT`, `original_price BIGINT`, `product_image TEXT`, `is_group_buy_completed BOOLEAN DEFAULT FALSE`. Kèm index `idx_forum_posts_created` và `idx_forum_comments_post_id`.
+
+### Cải tiến (Improved)
+
+- **Prop `currentUser` cho `ForumBoard`:** Interface `ForumBoardProps` nhận thêm `currentUser?: { id, displayName, universityName }`. `App.tsx` truyền trực tiếp object `user` từ `useAuth()`.
+- **Optimistic UI nhất quán cho toàn bộ forum actions:** Upvote, join, comment đều cập nhật UI ngay lập tức không chờ network, sau đó sync với response server. Trải nghiệm người dùng không bị giật/chờ đợi.
+- **Kiến trúc dữ liệu thuần React state:** Mọi mutation forum chỉ tồn tại trong React state (server-first) hoặc in-memory fallback. Không còn bất kỳ `localStorage.setItem` nào trong luồng Bản Tin SV.
+
+---
+
 ## [Hotfix] - 2026-06-10 — Sửa lỗi đăng bán & dọn dẹp Product Card
 
 ### Sửa lỗi (Fixed)

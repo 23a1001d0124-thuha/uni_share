@@ -10,6 +10,19 @@ import authRouter from "./src/routes/auth.ts";
 import { detectUniversityFromEmail } from "./src/data/universities.ts";
 import ws from "ws";
 import { v2 as cloudinary } from "cloudinary";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "unishare_secret_key_development_2026";
+
+function getUserIdFromReq(req: any): string | null {
+  const authHeader = req.headers["authorization"] as string | undefined;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    return decoded?.id || null;
+  } catch { return null; }
+}
 
 dotenv.config();
 
@@ -189,20 +202,43 @@ const mapCommentFromDB = (c: any) => {
   };
 };
 
-const assembleChatRoom = async (room: any, allProducts: any[], messagesList: any[]) => {
+const assembleChatRoom = async (
+  room: any,
+  allProducts: any[],
+  messagesList: any[],
+  allUsers: any[] = [],
+  viewerUserId?: string   // userId của người đang xem — để đặt "seller" = đối phương
+) => {
   if (!room) return null;
-  const prod = allProducts.find((p) => p.id === room.product_id);
+  const prod = allProducts.find((p: any) => p.id === room.product_id);
   const roomMsgs = messagesList
-    .filter((m) => m.room_id === room.id)
-    .map((m) => ({
+    .filter((m: any) => m.room_id === room.id)
+    .map((m: any) => ({
       id: m.id,
       senderId: m.sender_id,
       text: m.text,
       timestamp: m.timestamp
     }));
-  
+
+  const buyerRecord  = allUsers.find((u: any) => u.id === room.buyer_id);
+  const sellerRecord = allUsers.find((u: any) => u.id === (room.seller_id || (prod ? prod.authorId : null)));
+
+  const buyerName  = buyerRecord?.display_name  || "Người mua";
+  const buyerSchool  = buyerRecord?.university_short_name  || buyerRecord?.university_name  || "Chưa rõ";
+  const sellerName = prod ? prod.author : (sellerRecord?.display_name || "Người bán ẩn danh");
+  const sellerSchool = prod ? prod.school : (sellerRecord?.university_short_name || sellerRecord?.university_name || "Chưa rõ");
+  const sellerVerified = prod ? prod.isStudentVerified : true;
+
+  // "chatPartner" = người đối diện với viewerUserId
+  // Nếu viewer là seller → partner là buyer; ngược lại → partner là seller
+  const viewerIsSeller = viewerUserId && viewerUserId === (room.seller_id || (prod ? prod.authorId : null));
+  const chatPartner = viewerIsSeller
+    ? { id: room.buyer_id, name: buyerName, school: buyerSchool, isStudentVerified: buyerRecord?.is_student_verified || false }
+    : { id: room.seller_id || (prod ? prod.authorId : "unknown"), name: sellerName, school: sellerSchool, isStudentVerified: sellerVerified };
+
   return {
     roomId: room.id,
+    viewerRole: viewerIsSeller ? "seller" : "buyer",   // để FE biết ai đang xem
     product: {
       id: prod ? prod.id : room.product_id,
       name: prod ? prod.name : "Sản phẩm không hoạt động",
@@ -211,16 +247,11 @@ const assembleChatRoom = async (room: any, allProducts: any[], messagesList: any
       school: prod ? prod.school : "Chưa rõ"
     },
     buyer: {
-      id: room.buyer_id || "user_client_default",
-      name: "Sinh viên Nguyễn Thu Hạ (Bạn)",
-      school: "Đại học Mở Hà Nội"
+      id: room.buyer_id || "unknown",
+      name: buyerName,
+      school: buyerSchool
     },
-    seller: {
-      id: room.seller_id || (prod ? prod.authorId : "unknown"),
-      name: prod ? prod.author : "Người bán ẩn danh",
-      school: prod ? prod.school : "Chưa rõ",
-      isStudentVerified: prod ? prod.isStudentVerified : true
-    },
+    seller: chatPartner,   // luôn = đối phương của người đang xem
     messages: roomMsgs
   };
 };
@@ -773,34 +804,7 @@ async function seedSupabaseIfNeeded() {
         await supabase.from("forum_comments").insert(dbComments);
       }
 
-      // 5. Seed Chat Rooms
-      const dbRooms = chatRooms.map((r) => ({
-        id: r.roomId,
-        product_id: r.product.id,
-        buyer_id: r.buyer.id,
-        seller_id: r.seller.id,
-        created_at: r.messages?.[0]?.timestamp || new Date().toISOString()
-      }));
-      await supabase.from("chat_rooms").insert(dbRooms);
-
-      // 6. Seed Messages
-      const dbMessages: any[] = [];
-      chatRooms.forEach((r) => {
-        if (r.messages) {
-          r.messages.forEach((m) => {
-            dbMessages.push({
-              id: m.id,
-              room_id: r.roomId,
-              sender_id: m.senderId,
-              text: m.text,
-              timestamp: m.timestamp
-            });
-          });
-        }
-      });
-      if (dbMessages.length > 0) {
-        await supabase.from("messages").insert(dbMessages);
-      }
+      // 5 & 6. Không seed chat_rooms/messages giả — tạo on demand theo từng user
       
       console.log("Supabase database successfully pre-seeded with initial data!");
     } else {
@@ -809,6 +813,21 @@ async function seedSupabaseIfNeeded() {
   } catch (err: any) {
     console.error("Error during Supabase pre-seeding:", err.message);
   }
+}
+
+async function cleanupLegacyHardcodedChats() {
+  if (!supabase) return;
+  try {
+    const { data: legacyRooms } = await supabase
+      .from("chat_rooms").select("id").eq("buyer_id", "user_client_default");
+    if (legacyRooms && legacyRooms.length > 0) {
+      const ids = legacyRooms.map((r: any) => r.id);
+      console.log(`[CLEANUP] Xóa ${ids.length} chat rooms cũ hardcode...`);
+      await supabase.from("messages").delete().in("room_id", ids);
+      await supabase.from("chat_rooms").delete().in("id", ids);
+      console.log("[CLEANUP] Xong.");
+    }
+  } catch (err: any) { console.error("[CLEANUP] Lỗi:", err.message); }
 }
 
 // Mount Authentication & Verification Sub-routers
@@ -904,6 +923,23 @@ app.post("/api/products", async (req, res) => {
     return res.status(400).json({ success: false, message: "Thiếu dữ liệu sản phẩm!" });
   }
 
+  // authorId phải lấy từ JWT — không lấy từ body (bảo mật)
+  const authorIdFromToken = getUserIdFromReq(req);
+  if (!authorIdFromToken) {
+    return res.status(401).json({ success: false, message: "Yêu cầu đăng nhập để đăng sản phẩm!" });
+  }
+
+  // Lấy display_name từ bảng users để làm author name
+  let authorName = author || "Sinh viên";
+  if (supabase) {
+    const { data: userRecord } = await supabase
+      .from("users")
+      .select("display_name")
+      .eq("id", authorIdFromToken)
+      .single();
+    if (userRecord?.display_name) authorName = userRecord.display_name;
+  }
+
   const newProduct: any = {
     id: "prod_" + Date.now(),
     name,
@@ -914,13 +950,13 @@ app.post("/api/products", async (req, res) => {
     description: description || "",
     images: images && images.length > 0 ? images : ["https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600"],
     school: school || "Học viện Ngoại giao",
-    author: author || "Sinh viên Ẩn danh",
-    authorId: "user_client_default",
+    author: authorName,
+    authorId: authorIdFromToken,  // userId thật từ JWT
     isStudentVerified: true,
     views: 1,
     likes: 0,
     status: "Đang bán",
-    suitabilityScore: suitabilityScore || Math.floor(Math.random() * 15) + 85, // Random 85 -> 99 if not provided
+    suitabilityScore: suitabilityScore || Math.floor(Math.random() * 15) + 85,
     tags: tags || [],
     createdAt: new Date().toISOString()
   };
@@ -1201,6 +1237,7 @@ app.post("/api/forum", async (req, res) => {
     try {
       const { error } = await supabase.from("forum_posts").insert(mapForumPostToDB(newPost));
       if (!error) {
+        io.emit("forum_new_post", newPost);
         return res.json({ success: true, post: newPost });
       }
       console.error("Supabase forum post insertion failed:", error);
@@ -1210,6 +1247,7 @@ app.post("/api/forum", async (req, res) => {
   }
 
   forumPosts.unshift(newPost);
+  io.emit("forum_new_post", newPost);
   res.json({ success: true, post: newPost });
 });
 
@@ -1319,12 +1357,14 @@ app.post("/api/forum/:id/comments", async (req, res) => {
         const { data: updatedPost } = await supabase.from("forum_posts").select("*").eq("id", id).single();
         const { data: allComments } = await supabase.from("forum_comments").select("*").eq("post_id", id);
         const mappedComments = (allComments || []).map(mapCommentFromDB);
-        return res.json({
+        const responsePayload = {
           success: true,
           comment: mapCommentFromDB(newComment),
           commentsCount: newCount,
           post: mapForumPostFromDB(updatedPost, mappedComments)
-        });
+        };
+        io.emit("forum_new_comment", { postId: id, post: responsePayload.post });
+        return res.json(responsePayload);
       }
       console.error("Supabase post comment failed:", commentErr);
     } catch (err) {
@@ -1346,6 +1386,7 @@ app.post("/api/forum/:id/comments", async (req, res) => {
     };
     post.comments.push(newComment);
     post.commentsCount = post.comments.length;
+    io.emit("forum_new_comment", { postId: id, post });
     return res.json({ success: true, comment: newComment, commentsCount: post.commentsCount, post });
   }
   res.status(404).json({ success: false, message: "Không tìm thấy bài viết để thảo luận!" });
@@ -1353,119 +1394,120 @@ app.post("/api/forum/:id/comments", async (req, res) => {
 
 // 7. API: Get Chat Rooms
 app.get("/api/chats", async (req, res) => {
+  const userId = getUserIdFromReq(req);
+  if (!userId) return res.json({ success: true, chatRooms: [] });
+
   if (supabase) {
     try {
-      const { data: rooms, error: roomsErr } = await supabase.from("chat_rooms").select("*");
+      // Lấy cả rooms mà user là BUYER hoặc SELLER
+      const { data: buyerRooms } = await supabase
+        .from("chat_rooms").select("*").eq("buyer_id", userId);
+      const { data: sellerRooms } = await supabase
+        .from("chat_rooms").select("*").eq("seller_id", userId);
+
+      // Gộp và loại duplicate
+      const allRooms = [...(buyerRooms || []), ...(sellerRooms || [])];
+      const uniqueRooms = allRooms.filter(
+        (r, i, self) => self.findIndex((x) => x.id === r.id) === i
+      );
+
       const { data: prods } = await supabase.from("products").select("*");
       const { data: msgs } = await supabase.from("messages").select("*").order("timestamp", { ascending: true });
-      
-      if (!roomsErr && rooms) {
-        const allProductsMapped = (prods || []).map(mapProductFromDB);
-        const roomList = [];
-        for (const r of rooms) {
-          const assembled = await assembleChatRoom(r, allProductsMapped, msgs || []);
-          roomList.push(assembled);
-        }
-        return res.json({ success: true, chatRooms: roomList });
+      const { data: users } = await supabase.from("users").select("id, display_name, university_short_name, university_name");
+
+      const allProductsMapped = (prods || []).map(mapProductFromDB);
+      const allUsers = users || [];
+      const roomList = [];
+      for (const r of uniqueRooms) {
+        const assembled = await assembleChatRoom(r, allProductsMapped, msgs || [], allUsers, userId);
+        if (assembled) roomList.push(assembled);
       }
-      console.error("Supabase chats fetch failed:", roomsErr);
+      return res.json({ success: true, chatRooms: roomList });
     } catch (err) {
       console.error("Chats GET Error:", err);
     }
   }
-  res.json({ success: true, chatRooms });
+  res.json({ success: true, chatRooms: [] });
 });
 
 // 8. API: Post message in Room
 app.post("/api/chats/:roomId/messages", async (req, res) => {
   const { roomId } = req.params;
-  const { senderId, text } = req.body;
+  const { text } = req.body;
   if (!text) return res.status(400).json({ success: false, message: "Nội dung tin nhắn trống!" });
+
+  const senderId = getUserIdFromReq(req);
+  if (!senderId) return res.status(401).json({ success: false, message: "Yêu cầu đăng nhập!" });
 
   if (supabase) {
     try {
       const newMsg = {
         id: "msg_" + Date.now(),
         room_id: roomId,
-        sender_id: senderId || "user_client_default",
+        sender_id: senderId,
         text,
         timestamp: new Date().toISOString()
       };
       const { error } = await supabase.from("messages").insert(newMsg);
       if (!error) {
-        // Retrieve updated room details
         const { data: rData } = await supabase.from("chat_rooms").select("*").eq("id", roomId).single();
         const { data: prods } = await supabase.from("products").select("*");
         const { data: msgs } = await supabase.from("messages").select("*").order("timestamp", { ascending: true });
+        const { data: users } = await supabase.from("users").select("id, display_name, university_short_name, university_name");
         const allProductsMapped = (prods || []).map(mapProductFromDB);
-        const assembledRoom = await assembleChatRoom(rData, allProductsMapped, msgs || []);
-        
-        const finalMsg = {
-          id: newMsg.id,
-          senderId: newMsg.sender_id,
-          text: newMsg.text,
-          timestamp: newMsg.timestamp
-        };
-        io.to(roomId).emit("new_message", { roomId, message: finalMsg });
+        const assembledRoom = await assembleChatRoom(rData, allProductsMapped, msgs || [], users || [], senderId);
 
-        return res.json({
-          success: true,
-          message: finalMsg,
-          room: assembledRoom
-        });
+        const finalMsg = { id: newMsg.id, senderId: newMsg.sender_id, text: newMsg.text, timestamp: newMsg.timestamp };
+        io.to(roomId).emit("new_message", { roomId, message: finalMsg });
+        return res.json({ success: true, message: finalMsg, room: assembledRoom });
       }
       console.error("Supabase message insertion failed:", error);
     } catch (err) {
       console.error("Messages POST Error:", err);
     }
   }
-
-  const room = chatRooms.find(r => r.roomId === roomId);
-  if (room) {
-    const newMsg = {
-      id: "msg_" + Date.now(),
-      senderId: senderId || "user_client_default",
-      text,
-      timestamp: new Date().toISOString()
-    };
-    room.messages.push(newMsg);
-    io.to(roomId).emit("new_message", { roomId, message: newMsg });
-    return res.json({ success: true, message: newMsg, room });
-  }
-  res.status(404).json({ success: false, message: "Không tìm thấy phòng chat!" });
+  res.status(503).json({ success: false, message: "Không thể lưu tin nhắn, vui lòng thử lại!" });
 });
 
 // Create/obtain Chat Room
 app.post("/api/chats/find-or-create", async (req, res) => {
-  const { productId, buyerId, sellerId } = req.body;
-  
+  const { productId } = req.body;
+  const buyerId = getUserIdFromReq(req);
+
+  if (!buyerId) return res.status(401).json({ success: false, message: "Yêu cầu đăng nhập!" });
+  if (!productId) return res.status(400).json({ success: false, message: "Thiếu productId!" });
+
   if (supabase) {
     try {
-      // Look up existing chat room for this product
-      const { data: existingRoom, error: fetchErr } = await supabase
-        .from("chat_rooms")
-        .select("*")
-        .eq("product_id", productId)
-        .limit(1);
-        
       const { data: prods } = await supabase.from("products").select("*");
-      const { data: msgs } = await supabase.from("messages").select("*").order("timestamp", { ascending: true });
+      const { data: users } = await supabase.from("users").select("id, display_name, university_short_name, university_name");
       const allProductsMapped = (prods || []).map(mapProductFromDB);
+      const allUsers = users || [];
 
-      if (!fetchErr && existingRoom && existingRoom.length > 0) {
-        const assembled = await assembleChatRoom(existingRoom[0], allProductsMapped, msgs || []);
+      // Tìm room theo đúng cặp (product + buyer) — mỗi user có phòng riêng
+      const { data: existingRooms, error: fetchErr } = await supabase
+        .from("chat_rooms").select("*")
+        .eq("product_id", productId).eq("buyer_id", buyerId).limit(1);
+
+      if (!fetchErr && existingRooms && existingRooms.length > 0) {
+        const { data: msgs } = await supabase.from("messages").select("*").order("timestamp", { ascending: true });
+        const assembled = await assembleChatRoom(existingRooms[0], allProductsMapped, msgs || [], allUsers, buyerId);
         return res.json({ success: true, room: assembled });
       }
 
-      // Create new room
-      const prod = allProductsMapped.find(p => p.id === productId);
+      const prod = allProductsMapped.find((p: any) => p.id === productId);
       if (!prod) return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
+
+      // Chặn người đăng sản phẩm tự mua chính sản phẩm của mình
+      if (prod.authorId === buyerId) {
+        return res.status(400).json({ success: false, message: "Bạn không thể nhắn tin hỏi mua sản phẩm của chính mình!" });
+      }
 
       const newRoomId = "room_" + Date.now();
       const newRoomRecord = {
         id: newRoomId,
         product_id: productId,
-        buyer_id: "user_client_default",
+        buyer_id: buyerId,           // userId thật từ JWT
         seller_id: prod.authorId,
         created_at: new Date().toISOString()
       };
@@ -1473,66 +1515,23 @@ app.post("/api/chats/find-or-create", async (req, res) => {
       const { error: insertRoomErr } = await supabase.from("chat_rooms").insert(newRoomRecord);
       if (!insertRoomErr) {
         const initMsg = {
-          id: "msg_init",
+          id: "msg_init_" + Date.now(),
           room_id: newRoomId,
           sender_id: "system",
-          text: `Hệ thống kết nối. Bạn đang hỏi mua sản phẩm "${prod.name}" từ ${prod.author}. Hãy trao đổi lịch hẹn văn minh tại trường học!`,
+          text: `Kết nối thành công! Bạn đang hỏi mua sản phẩm "${prod.name}" từ ${prod.author}. Hãy trao đổi lịch hẹn văn minh tại trường học!`,
           timestamp: new Date().toISOString()
         };
         await supabase.from("messages").insert(initMsg);
-
-        // Return newly created, assembled room
         const { data: msgsUpdated } = await supabase.from("messages").select("*").order("timestamp", { ascending: true });
-        const assembled = await assembleChatRoom(newRoomRecord, allProductsMapped, msgsUpdated || []);
+        const assembled = await assembleChatRoom(newRoomRecord, allProductsMapped, msgsUpdated || [], allUsers, buyerId);
         return res.json({ success: true, room: assembled });
       }
-      console.error("Supabase creation of room failed:", insertRoomErr);
+      console.error("Supabase room creation failed:", insertRoomErr);
     } catch (err) {
       console.error("Room FIND-OR-CREATE Error:", err);
     }
   }
-
-  // Fallback to in-memory list
-  let room = chatRooms.find(r => r.product.id === productId);
-  if (room) {
-    return res.json({ success: true, room });
-  }
-
-  const prod = products.find(p => p.id === productId);
-  if (!prod) return res.status(404).json({ success: false, message: "Không tìm thấy sản phẩm" });
-
-  const newRoom = {
-    roomId: "room_" + Date.now(),
-    product: {
-      id: prod.id,
-      name: prod.name,
-      price: prod.price,
-      image: prod.images[0],
-      school: prod.school
-    },
-    buyer: {
-      id: "user_client_default",
-      name: "Sinh viên Nguyễn Thu Hạ (Bạn)",
-      school: "Đại học Mở Hà Nội"
-    },
-    seller: {
-      id: prod.authorId,
-      name: prod.author,
-      school: prod.school,
-      isStudentVerified: prod.isStudentVerified
-    },
-    messages: [
-      {
-        id: "msg_init",
-        senderId: "system",
-        text: `Hệ thống kết nối. Bạn đang hỏi mua sản phẩm "${prod.name}" từ ${prod.author}. Hãy trao đổi lịch hẹn văn minh tại trường học!`,
-        timestamp: new Date().toISOString()
-      }
-    ]
-  };
-
-  chatRooms.push(newRoom);
-  res.json({ success: true, room: newRoom });
+  res.status(503).json({ success: false, message: "Không thể tạo phòng thương lượng, vui lòng thử lại!" });
 });
 
 
@@ -1931,7 +1930,7 @@ import next from "next";
 
 async function startServer() {
   // Pre-seed Supabase database if tables exist and are empty
-  await seedSupabaseIfNeeded();
+  await seedSupabaseIfNeeded().then(() => cleanupLegacyHardcodedChats());
 
   const dev = process.env.NODE_ENV !== "production";
   const nextApp = next({ dev: dev, dir: process.cwd() });
