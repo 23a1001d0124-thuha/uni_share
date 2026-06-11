@@ -57,7 +57,7 @@ const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 const isSupabaseConfigured = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
 const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      realtime: { transport: ws },
+      realtime: { transport: ws as any },
     })
   : null;
 // const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;

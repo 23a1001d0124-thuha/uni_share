@@ -743,7 +743,7 @@ export default function App() {
 
       const newRoom = {
         roomId,
-        viewerRole: "buyer",
+        viewerRole: "buyer" as const,
         product: {
           id: targetProduct.id,
           name: targetProduct.name,
