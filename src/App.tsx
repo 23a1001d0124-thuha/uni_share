@@ -51,7 +51,7 @@ import { useAuth } from "./components/auth/AuthContext";
 import VerifyStudentModal from "./components/auth/VerifyStudentModal";
 import LoginModal from "./components/auth/LoginModal";
 import SellerProfileModal from "./components/SellerProfileModal";
-import { io, Socket } from "socket.io-client";
+import { supabase as supabaseClient } from "./lib/supabase-client";
 
 export default function App() {
   // Navigation Tabs: marketplace | tinder | chat | forum | my-listings | checkout | help | settings
@@ -173,79 +173,134 @@ export default function App() {
   // Selected Room ID
   const [activeRoomId, setActiveRoomId] = useState<string>("");
 
-  // Network State
-  const [socket, setSocket] = useState<Socket | null>(null);
-
+  // Network State (Supabase Realtime replaces Socket.io)
   useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
+    if (!supabaseClient) return;
 
-    newSocket.on("new_message", (data: { roomId: string; message: any }) => {
-      setChatRooms((prevRooms) => {
-        const updatedRooms = [...prevRooms];
-        const roomIndex = updatedRooms.findIndex(
-          (r) => r.roomId === data.roomId,
-        );
-        if (roomIndex > -1) {
-          const exists = updatedRooms[roomIndex].messages.some(
-            (m) => m.id === data.message.id,
-          );
-          if (!exists) {
-            updatedRooms[roomIndex].messages.push(data.message);
-            if (activeTab !== "chat" || activeRoomId !== data.roomId) {
+    // 1. Listen for new messages in ANY chat room the user might be in
+    const messageChannel = supabaseClient
+      .channel('public:messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMessage = payload.new as any;
+          setChatRooms((prevRooms) => {
+            const updatedRooms = [...prevRooms];
+            const roomIndex = updatedRooms.findIndex((r) => r.roomId === newMessage.room_id);
+            if (roomIndex > -1) {
+              const exists = updatedRooms[roomIndex].messages.some((m) => m.id === newMessage.id);
+              if (!exists) {
+                updatedRooms[roomIndex].messages.push({
+                  id: newMessage.id,
+                  senderId: newMessage.sender_id,
+                  text: newMessage.text,
+                  timestamp: newMessage.timestamp
+                });
+                
+                if (activeTab !== "chat" || activeRoomId !== newMessage.room_id) {
+                  pushNotification(
+                    "Tin nhắn thương lượng mới",
+                    `Bạn có thông điệp mới từ phiên đàm phán đồ cũ: "${newMessage.text.substring(0, 30)}..."`,
+                    "message",
+                  );
+                }
+              }
+            }
+            return updatedRooms;
+          });
+        }
+      )
+      .subscribe();
+
+    // 2. Listen for forum changes (new posts, upvotes, comments)
+    const forumChannel = supabaseClient
+      .channel('public:forum')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'forum_posts' },
+        (payload) => {
+          const newPost = payload.new as any;
+          setForumPosts((prev) => {
+            if (prev.some((p) => p.id === newPost.id)) return prev;
+            
+            // Map DB fields to UI fields
+            const mappedPost: ForumPost = {
+              id: newPost.id,
+              title: newPost.title,
+              tag: newPost.tag,
+              author: newPost.author,
+              school: newPost.school,
+              content: newPost.content,
+              upvotes: Number(newPost.upvotes),
+              commentsCount: Number(newPost.comments_count),
+              comments: [],
+              joinedUsers: Array.isArray(newPost.joined_users) ? newPost.joined_users : JSON.parse(newPost.joined_users || "[]"),
+              createdAt: newPost.created_at
+            };
+
+            if (activeTab !== "forum") {
               pushNotification(
-                "Tin nhắn thương lượng mới",
-                `Bạn có thông điệp mới từ phiên đàm phán đồ cũ: "${data.message.text.substring(0, 30)}..."`,
-                "message",
+                "Bản tin mới 📣",
+                `${mappedPost.author} vừa đăng: "${mappedPost.title}"`,
+                "info",
               );
             }
-          }
+            return [mappedPost, ...prev];
+          });
         }
-        return updatedRooms;
-      });
-    });
-
-    // Real-time: bình luận mới trên bất kỳ bài đăng forum nào
-    newSocket.on(
-      "forum_new_comment",
-      (data: { postId: string; post: ForumPost }) => {
-        setForumPosts((prev) =>
-          prev.map((p) => (p.id === data.postId ? data.post : p)),
-        );
-      },
-    );
-
-    // Real-time: bài đăng mới từ sinh viên khác
-    newSocket.on("forum_new_post", (newPost: ForumPost) => {
-      setForumPosts((prev) => {
-        // Tránh duplicate nếu chính mình vừa đăng
-        if (prev.some((p) => p.id === newPost.id)) return prev;
-        if (activeTab !== "forum") {
-          pushNotification(
-            "Bản tin mới 📣",
-            `${newPost.author} vừa đăng: "${newPost.title}"`,
-            "info",
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'forum_posts' },
+        (payload) => {
+          const updatedPost = payload.new as any;
+          setForumPosts((prev) => 
+            prev.map((p) => p.id === updatedPost.id ? { 
+              ...p, 
+              upvotes: Number(updatedPost.upvotes),
+              commentsCount: Number(updatedPost.comments_count),
+              joinedUsers: Array.isArray(updatedPost.joined_users) ? updatedPost.joined_users : JSON.parse(updatedPost.joined_users || "[]")
+            } : p)
           );
         }
-        return [newPost, ...prev];
-      });
-    });
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'forum_comments' },
+        (payload) => {
+          const newComment = payload.new as any;
+          setForumPosts((prev) => 
+            prev.map((p) => {
+              if (p.id === newComment.post_id) {
+                const mappedComment = {
+                  id: newComment.id,
+                  author: newComment.author,
+                  school: newComment.school,
+                  content: newComment.content,
+                  createdAt: newComment.created_at
+                };
+                const exists = p.comments?.some(c => c.id === mappedComment.id);
+                if (!exists) {
+                  return {
+                    ...p,
+                    comments: [...(p.comments || []), mappedComment],
+                    commentsCount: (p.comments?.length || 0) + 1
+                  };
+                }
+              }
+              return p;
+            })
+          );
+        }
+      )
+      .subscribe();
 
     return () => {
-      newSocket.off("new_message");
-      newSocket.off("forum_new_comment");
-      newSocket.off("forum_new_post");
-      newSocket.disconnect();
+      supabaseClient.removeChannel(messageChannel);
+      supabaseClient.removeChannel(forumChannel);
     };
   }, [activeTab, activeRoomId]);
-
-  useEffect(() => {
-    if (socket && chatRooms.length > 0) {
-      chatRooms.forEach((room) => {
-        socket.emit("join_room", room.roomId);
-      });
-    }
-  }, [socket, chatRooms]);
 
   // Khởi tạo null — chỉ set sau khi user đăng nhập thành công
   const [profile, setProfile] = useState<UserProfile | null>(null);

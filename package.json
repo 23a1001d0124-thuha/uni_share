@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "dev:full": "tsx server.ts",
+    "dev": "next dev",
+    "dev:full": "next dev",
     "dev:next": "next dev",
-    "build": "next build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "next build",
     "build:next": "next build",
-    "start": "cross-env NODE_ENV=production node dist/server.cjs",
+    "start": "next start",
     "start:next": "next start",
     "clean": "rimraf dist server.js .next",
     "lint": "tsc --noEmit || true"
@@ -31,8 +31,6 @@
     "nodemailer": "^8.0.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
     "ws": "^8.21.0"
   },
   "devDependencies": {

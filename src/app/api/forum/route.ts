@@ -1,57 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getForumData } from "../../../lib/readOnlyApiData";
-import { INITIAL_FORUM_POSTS } from "../../../fallbackData";
-
-const getSupabase = () => {
-  const url = process.env.SUPABASE_URL || "";
-  const key = process.env.SUPABASE_ANON_KEY || "";
-  if (!url || !key) return null;
-  return createClient(url, key);
-};
+import { supabase } from "../../../lib/server-config";
 
 export async function GET() {
-  const data = await getForumData();
-  return NextResponse.json(data);
+  if (!supabase) return NextResponse.json({ success: false, message: "DB error" }, { status: 500 });
+  
+  const { data: posts, error: postsError } = await supabase.from("forum_posts").select("*").order("created_at", { ascending: false });
+  const { data: comments, error: commentsError } = await supabase.from("forum_comments").select("*").order("created_at", { ascending: true });
+  
+  if (postsError) return NextResponse.json({ success: false, message: postsError.message }, { status: 500 });
+
+  const mapped = (posts || []).map(p => ({
+    ...p,
+    id: p.id,
+    title: p.title,
+    tag: p.tag,
+    author: p.author,
+    school: p.school,
+    content: p.content,
+    upvotes: Number(p.upvotes),
+    commentsCount: Number(p.comments_count),
+    comments: (comments || [])
+      .filter(c => c.post_id === p.id)
+      .map(c => ({
+        id: c.id,
+        postId: c.post_id,
+        author: c.author,
+        school: c.school,
+        content: c.content,
+        createdAt: c.created_at
+      })),
+    joinedUsers: Array.isArray(p.joined_users) ? p.joined_users : JSON.parse(p.joined_users || "[]"),
+    createdAt: p.created_at
+  }));
+
+  return NextResponse.json({ success: true, forumPosts: mapped });
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, tag, content, author, school } = body;
-
-  if (!title || !content) {
-    return NextResponse.json(
-      { success: false, message: "Thiếu tiêu đề hoặc nội dung bài đăng!" },
-      { status: 400 }
-    );
-  }
+  const { title, tag, content, author, school } = await req.json();
+  if (!supabase) return NextResponse.json({ success: false, message: "DB error" }, { status: 500 });
 
   const newPost = {
     id: "forum_" + Date.now(),
     title,
     tag: tag || "Thảo luận",
-    author: author || "Sinh viên ẩn danh",
-    school: school || "Đại học Mở Hà Nội",
+    author: author || "Sinh viên",
+    school: school || "Chưa rõ",
     content,
     upvotes: 1,
     comments_count: 0,
     joined_users: [],
-    created_at: new Date().toISOString(),
+    created_at: new Date().toISOString()
   };
 
-  const supabase = getSupabase();
-  if (supabase) {
-    try {
-      const { error } = await supabase.from("forum_posts").insert(newPost);
-      if (!error) {
-        return NextResponse.json({ success: true, post: newPost });
-      }
-      console.error("Supabase forum insert failed:", error);
-    } catch (err) {
-      console.error("Forum POST error:", err);
-    }
-  }
+  const { error } = await supabase.from("forum_posts").insert(newPost);
+  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 500 });
 
-  // In-memory fallback (no localStorage, no persistence)
   return NextResponse.json({ success: true, post: newPost });
 }
