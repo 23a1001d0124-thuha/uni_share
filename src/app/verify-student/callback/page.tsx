@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
-export default function VerifyStudentCallbackPage() {
+function VerifyStudentCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -108,5 +108,26 @@ export default function VerifyStudentCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifyStudentCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-lg border border-stone-200 p-8 max-w-sm w-full text-center space-y-5">
+            <div className="flex justify-center">
+              <div className="p-4 bg-blue-50 rounded-full">
+                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+              </div>
+            </div>
+            <p className="text-sm text-stone-500">Đang tải...</p>
+          </div>
+        </div>
+      }
+    >
+      <VerifyStudentCallbackContent />
+    </Suspense>
   );
 }
