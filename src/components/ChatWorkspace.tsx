@@ -35,6 +35,13 @@ export default function ChatWorkspace({
   const [inputText, setInputText] = useState("");
   const activeRoom = rooms.find((r) => r.roomId === activeRoomId) || rooms[0];
 
+  // Đối phương trong phòng chat: nếu mình là seller thì partner là buyer, ngược lại
+  const chatPartner = activeRoom
+    ? activeRoom.viewerRole === "seller"
+      ? activeRoom.buyer
+      : activeRoom.seller
+    : null;
+
   // Mobile navigation tab representation (Messenger style)
   const [mobileActiveTab, setMobileActiveTab] = useState<
     "rooms" | "chat" | "pricing"
@@ -272,7 +279,7 @@ export default function ChatWorkspace({
             <div className="min-w-0">
               <span className="font-bold text-stone-900 text-xs flex items-center gap-1 truncate pb-0.5">
                 {chatPartner?.name ?? "Đối phương"}
-                {chatPartner?.isStudentVerified && (
+                {chatPartner && (chatPartner as any).isStudentVerified && (
                   <span className="bg-emerald-100 text-emerald-800 text-[8px] px-1.5 py-0.2 rounded-full font-black border border-emerald-250 shrink-0">
                     SV Verified
                   </span>

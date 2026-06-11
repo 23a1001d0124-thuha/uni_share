@@ -79,6 +79,7 @@ export interface Message {
 
 export interface ChatRoom {
   roomId: string;
+  viewerRole: "buyer" | "seller";
   product: {
     id: string;
     name: string;

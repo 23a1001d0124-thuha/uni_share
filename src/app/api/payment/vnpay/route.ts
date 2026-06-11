@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
 const VNPAY_CONFIG = {
-  tmnCode: process.env.VNPAY_TMN_CODE || "UNISHARE",
+  tmnCode: process.env.VNPAY_TMN_CODE || "DEMOV210",  // Thay bằng TMN Code thật từ VNPAY merchant portal
   hashSecret: process.env.VNPAY_HASH_SECRET || "CHANGEME_IN_PRODUCTION",
   url: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
   returnUrl: process.env.VNPAY_RETURN_URL || `${process.env.APP_URL || "http://localhost:3000"}/vnpay-return`,
 };
+
+// VNPAY yêu cầu createDate theo giờ Việt Nam (UTC+7), format: yyyyMMddHHmmss
+function getVnpayCreateDate(): string {
+  const now = new Date();
+  const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000); // offset +7h
+  return vn.toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+}
 
 function sortObject(obj: Record<string, string>) {
   return Object.keys(obj)
@@ -24,18 +31,36 @@ function sortObject(obj: Record<string, string>) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { amount, orderId, orderInfo = `Thanh toan don hang ${orderId}` } = body;
-
-    if (!amount || !orderId) {
-      return NextResponse.json({ error: "Thiếu amount hoặc orderId" }, { status: 400 });
+    if (!VNPAY_CONFIG.tmnCode || VNPAY_CONFIG.tmnCode === "DEMOV210") {
+      return NextResponse.json(
+        { error: "Chưa cấu hình VNPAY_TMN_CODE (cần TMN Code thật)" },
+        { status: 500 },
+      );
+    }
+    if (!VNPAY_CONFIG.hashSecret || VNPAY_CONFIG.hashSecret === "CHANGEME_IN_PRODUCTION") {
+      return NextResponse.json(
+        { error: "Chưa cấu hình VNPAY_HASH_SECRET (hash secret thật)" },
+        { status: 500 },
+      );
     }
 
-    const date = new Date();
-    const createDate = date
-      .toISOString()
-      .replace(/[-:T.Z]/g, "")
-      .slice(0, 14);
+    const body = await req.json();
+    const { amount, orderId } = body as {
+      amount: number;
+      orderId: string;
+      orderInfo?: string;
+    };
+    const orderInfo = body?.orderInfo ?? `Thanh toan don hang ${orderId}`;
+
+    if (amount === undefined || amount === null || Number(amount) <= 0 || !orderId) {
+      return NextResponse.json(
+        { error: "Thiếu hoặc không hợp lệ amount/orderId" },
+        { status: 400 },
+      );
+    }
+
+
+    const createDate = getVnpayCreateDate();
 
     const vnpParams: Record<string, string> = {
       vnp_Version: "2.1.0",

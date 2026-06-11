@@ -22,6 +22,7 @@ interface CheckoutWizardProps {
   onRemoveFromCart: (id: string) => void;
   onClearCart: () => void;
   isStudentVerified: boolean;
+  currentUserId?: string;
   onPostMessageMock: (roomId: string, text: string) => Promise<void>;
   onSubmitNewTransactionNotice: (pId: string) => Promise<void>;
 }
@@ -206,27 +207,17 @@ function buildFullAddress(form: AddressForm): string {
 }
 
 // ─── VNPAY helper (mock URL builder) ─────────────────────────────────────────
-function buildVnpayUrl(amount: number, orderId: string): string {
-  const params = new URLSearchParams({
-    vnp_Version: "2.1.0",
-    vnp_Command: "pay",
-    vnp_TmnCode: "UNISHARE",
-    vnp_Amount: String(amount * 100),
-    vnp_CurrCode: "VND",
-    vnp_TxnRef: orderId,
-    vnp_OrderInfo: `Thanh toan don hang ${orderId}`,
-    vnp_OrderType: "other",
-    vnp_Locale: "vn",
-    vnp_ReturnUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/vnpay-return`,
-    vnp_IpAddr: "127.0.0.1",
-    vnp_CreateDate: new Date()
-      .toISOString()
-      .replace(/[-:T.Z]/g, "")
-      .slice(0, 14),
+// Gọi server để tạo URL có chữ ký HMAC-SHA512 hợp lệ
+async function buildVnpayUrl(amount: number, orderId: string): Promise<string> {
+  const res = await fetch("/api/payment/vnpay", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, orderId }),
   });
-  // In production, this URL is generated server-side with HMAC-SHA512 signature.
-  // Here we point to the sandbox gateway for demonstration.
-  return `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?${params.toString()}`;
+  if (!res.ok) throw new Error("Không thể tạo đường dẫn thanh toán VNPAY");
+  const data = await res.json();
+  if (!data.paymentUrl) throw new Error(data.error || "Lỗi tạo link VNPAY");
+  return data.paymentUrl;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -237,6 +228,7 @@ export default function CheckoutWizard({
   onRemoveFromCart,
   onClearCart,
   isStudentVerified,
+  currentUserId,
   onPostMessageMock,
   onSubmitNewTransactionNotice,
 }: CheckoutWizardProps) {
@@ -348,13 +340,30 @@ export default function CheckoutWizard({
     }
   };
 
-  const handleVnpayPay = () => {
-    const url = buildVnpayUrl(total, orderId.current);
-    setVnpayRedirected(true);
-    window.open(url, "_blank");
+  const handleVnpayPay = async () => {
+    try {
+      const url = await buildVnpayUrl(total, orderId.current);
+      setVnpayRedirected(true);
+      window.open(url, "_blank");
+    } catch (err: any) {
+      alert(
+        err.message ||
+          "Không thể kết nối cổng thanh toán VNPAY. Vui lòng thử lại!",
+      );
+    }
   };
 
   const handleOrderCompletion = async () => {
+    // Guard: prevent buying your own listing(s)
+    const selfItems = currentUserId
+      ? cart.filter((p) => p.authorId && p.authorId === currentUserId)
+      : [];
+
+    if (selfItems.length > 0) {
+      alert("Bạn không thể mua sản phẩm do chính mình đăng bán!");
+      return;
+    }
+
     if (cart.length > 0) {
       setRatedProduct({
         name: cart[0].name,
@@ -362,6 +371,7 @@ export default function CheckoutWizard({
         productId: cart[0].id,
       });
     }
+
     setStep("complete");
     for (const p of cart) {
       try {

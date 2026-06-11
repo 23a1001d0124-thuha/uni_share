@@ -1,5 +1,19 @@
 # PROJECT CHANGELOG (CHANGELOG.md)
 
+## [Hotfix] - 2026-06-11 — Chặn người đăng bán tự mua sản phẩm của chính mình
+
+### Sửa lỗi (Fixed)
+
+- **[BUG] Người đăng bán có thể tự mua sản phẩm của mình:** `handleAddToCart` trong `App.tsx` chỉ kiểm tra đăng nhập và trùng sản phẩm, không kiểm tra `product.authorId === user.id`. Fix: thêm guard block chặn sờm nếu người d��ng đang cố thêm sản phẩm do chính họ đăng.
+- **[BUG] Card sản phẩm vẫn hiện nút "Thêm giỏ" và "Mua ngay" cho chính sản phẩm mình đăng:** Logic cũ kiểm tra `authorId === "user_client_default"` (hardcode) không đú ngĩa nước. Fix: thay toàn bộ khối ternary cũ (2 nhánh giống hệt nhau) bằng kiểm tra `product.authorId === user?.id`: nếu đúng chủ sản phẩm thì hiện badge "📦 Sản phẩm của bạn" thay cả 2 nút.
+- **[BUG] Modal chi tiết sản phẩm cũng không chặn:** Các nút "Thêm giỏ hàng" và "Hỏi mua & Đặt lịch hẹn" trong modal chi tiết cũng gọi `onAddToCart` bữt kể ai xem. Fix: bọc nút bằng `selectedDetailProd.authorId === user?.id`, hiện badge thay thế.
+
+### Cải tiến (Improved)
+
+- `MarketplaceSpace.tsx` giờ bỏ khối ternary trùng lếp không có tác dụng (cả 2 nhánh `authorId === "user_client_default"` và `else` đều render cùng một UI), thay bằng logic sạch, đưa `useAuth()` vào component để có `user.id` thật khi so sánh.
+
+---
+
 ## [Hotfix] - 2026-06-11 — Phòng Thương Lượng Chat: Fix Toàn Diện Database & Real-time
 
 ### Sửa lỗi (Fixed)

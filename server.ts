@@ -1928,6 +1928,99 @@ Hãy phân tích hình ảnh này và đưa ra kết quả phân loại chuẩn 
 
 import next from "next";
 
+// ─── VNPAY Payment Routes ──────────────────────────────────────────────────────
+
+const VNPAY_CONFIG = {
+  tmnCode: process.env.VNPAY_TMN_CODE || "DEMOV210",
+  hashSecret: process.env.VNPAY_HASH_SECRET || "CHANGEME_IN_PRODUCTION",
+  url: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+  returnUrl: process.env.VNPAY_RETURN_URL || `${process.env.APP_URL || "http://localhost:3000"}/vnpay-return`,
+};
+
+function vnpSortObject(obj: Record<string, string>) {
+  return Object.keys(obj).sort().reduce((result: Record<string, string>, key) => {
+    result[key] = obj[key];
+    return result;
+  }, {});
+}
+
+function getVnpayCreateDate(): string {
+  const vn = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  return vn.toISOString().replace(/[-:T.Z]/g, "").slice(0, 14);
+}
+
+app.post("/api/payment/vnpay", (req, res) => {
+  try {
+    const { amount, orderId, orderInfo = `Thanh toan don hang ${orderId}` } = req.body;
+
+    if (!amount || !orderId) {
+      return res.status(400).json({ error: "Thiếu amount hoặc orderId" });
+    }
+
+    const vnpParams: Record<string, string> = {
+      vnp_Version: "2.1.0",
+      vnp_Command: "pay",
+      vnp_TmnCode: VNPAY_CONFIG.tmnCode,
+      vnp_Amount: String(Math.round(Number(amount)) * 100),
+      vnp_CurrCode: "VND",
+      vnp_TxnRef: String(orderId),
+      vnp_OrderInfo: orderInfo,
+      vnp_OrderType: "other",
+      vnp_Locale: "vn",
+      vnp_ReturnUrl: VNPAY_CONFIG.returnUrl,
+      vnp_IpAddr: (req.headers["x-forwarded-for"] as string)?.split(",")[0].trim() || req.socket.remoteAddress || "127.0.0.1",
+      vnp_CreateDate: getVnpayCreateDate(),
+    };
+
+    const sortedParams = vnpSortObject(vnpParams);
+    const signData = new URLSearchParams(sortedParams).toString();
+    const secureHash = require("crypto")
+      .createHmac("sha512", VNPAY_CONFIG.hashSecret)
+      .update(signData)
+      .digest("hex");
+
+    const paymentUrl = `${VNPAY_CONFIG.url}?${signData}&vnp_SecureHash=${secureHash}`;
+    console.log("[VNPay] Created payment URL for order:", orderId);
+    return res.json({ paymentUrl, orderId });
+  } catch (err) {
+    console.error("[VNPay] Create payment error:", err);
+    return res.status(500).json({ error: "Lỗi tạo đường dẫn thanh toán" });
+  }
+});
+
+app.get("/api/payment/vnpay/return", (req, res) => {
+  const params: Record<string, string> = {};
+  Object.entries(req.query).forEach(([k, v]) => {
+    if (k !== "vnp_SecureHash" && k !== "vnp_SecureHashType") {
+      params[k] = String(v);
+    }
+  });
+
+  const receivedHash = String(req.query.vnp_SecureHash || "");
+  const sortedParams = vnpSortObject(params);
+  const signData = new URLSearchParams(sortedParams).toString();
+  const expectedHash = require("crypto")
+    .createHmac("sha512", VNPAY_CONFIG.hashSecret)
+    .update(signData)
+    .digest("hex");
+
+  if (receivedHash.toLowerCase() !== expectedHash.toLowerCase()) {
+    return res.status(400).json({ RspCode: "97", Message: "Sai chữ ký" });
+  }
+
+  const responseCode = req.query.vnp_ResponseCode;
+  const orderId = req.query.vnp_TxnRef;
+  const amount = Number(req.query.vnp_Amount || 0) / 100;
+
+  if (responseCode === "00") {
+    console.log(`[VNPay] Order ${orderId} paid successfully: ${amount} VND`);
+    return res.json({ RspCode: "00", Message: "Thanh toán thành công", orderId, amount });
+  }
+  return res.json({ RspCode: responseCode, Message: "Thanh toán thất bại", orderId });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 async function startServer() {
   // Pre-seed Supabase database if tables exist and are empty
   await seedSupabaseIfNeeded().then(() => cleanupLegacyHardcodedChats());

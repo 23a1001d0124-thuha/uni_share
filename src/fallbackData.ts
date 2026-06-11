@@ -434,6 +434,8 @@ export const INITIAL_FORUM_POSTS: ForumPost[] = [
 export const INITIAL_CHAT_ROOMS: ChatRoom[] = [
   {
     roomId: "room_1",
+    viewerRole: "buyer",
+
     product: {
       id: "prod_1",
       name: "Sách Giáo Trình Kinh Tế Vĩ Mô - FTU",
@@ -475,6 +477,8 @@ export const INITIAL_CHAT_ROOMS: ChatRoom[] = [
   },
   {
     roomId: "room_2",
+    viewerRole: "buyer",
+
     product: {
       id: "prod_3",
       name: "Ấm Siêu Tốc Điện Sunhouse 1.8L",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "../components/auth/AuthContext";
 import {
   Search,
   SearchX,
@@ -108,6 +109,7 @@ export default function MarketplaceSpace({
 }: MarketplaceSpaceProps) {
   // Filters State
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
+  const { user } = useAuth();
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [selectedCondition, setSelectedCondition] = useState("Tất cả");
   const [minPrice, setMinPrice] = useState("");
@@ -807,90 +809,59 @@ export default function MarketplaceSpace({
                         )}
                     </div>
 
-                    {product.authorId === "user_client_default" ||
-                    !product.authorId ? (
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddToCartWithFeedback(product);
-                          }}
-                          disabled={product.status !== "Đang bán"}
-                          className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[34px] border text-xs font-semibold disabled:opacity-50 ${
-                            addedProductIds[product.id]
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                              : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600"
-                          }`}
-                        >
-                          {addedProductIds[product.id] ? (
-                            <CheckCircle2 className="w-4 h-4" />
-                          ) : (
-                            <ShoppingBag className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAddToCart(product);
-                            if (
-                              product.status === "Đang bán" &&
-                              onNavigateToTab
-                            )
-                              onNavigateToTab("checkout");
-                          }}
-                          disabled={product.status !== "Đang bán"}
-                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[34px] disabled:opacity-50"
-                        >
-                          Mua ngay
-                        </button>
+                    {product.authorId && product.authorId === user?.id ? (
+                      <div className="w-full text-center text-[11px] text-stone-400 font-semibold py-2 bg-stone-50 rounded-xl border border-stone-200">
+                        📦 Sản phẩm của bạn
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddToCartWithFeedback(product);
+                            }}
+                            disabled={product.status !== "Đang bán"}
+                            className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[34px] border text-xs font-semibold disabled:opacity-50 ${
+                              addedProductIds[product.id]
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                                : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600"
+                            }`}
+                          >
+                            {addedProductIds[product.id] ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : (
+                              <ShoppingBag className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddToCart(product);
+                              if (
+                                product.status === "Đang bán" &&
+                                onNavigateToTab
+                              )
+                                onNavigateToTab("checkout");
+                            }}
+                            disabled={product.status !== "Đang bán"}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[34px] disabled:opacity-50"
+                          >
+                            Mua ngay
+                          </button>
+                        </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleAddToCartWithFeedback(product);
+                            onSelectProductForChat(product.id);
                           }}
                           disabled={product.status !== "Đang bán"}
-                          className={`flex items-center justify-center rounded-xl transition cursor-pointer min-h-[34px] border text-xs font-semibold disabled:opacity-50 ${
-                            addedProductIds[product.id]
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                              : "bg-white border-stone-200 hover:border-rose-300 text-stone-600 hover:text-rose-600"
-                          }`}
+                          className="w-full text-center mt-2 text-rose-600 hover:text-rose-700 text-xs font-semibold cursor-pointer transition hover:underline flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed min-h-[32px]"
                         >
-                          {addedProductIds[product.id] ? (
-                            <CheckCircle2 className="w-4 h-4" />
-                          ) : (
-                            <ShoppingBag className="w-4 h-4" />
-                          )}
+                          💬 Nhắn tin hỏi giá
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onAddToCart(product);
-                            if (
-                              product.status === "Đang bán" &&
-                              onNavigateToTab
-                            )
-                              onNavigateToTab("checkout");
-                          }}
-                          disabled={product.status !== "Đang bán"}
-                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs py-1.5 rounded-xl transition cursor-pointer min-h-[34px] disabled:opacity-50"
-                        >
-                          Mua ngay
-                        </button>
-                      </div>
+                      </>
                     )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectProductForChat(product.id);
-                      }}
-                      disabled={product.status !== "Đang bán"}
-                      className="w-full text-center mt-2 text-rose-600 hover:text-rose-700 text-xs font-semibold cursor-pointer transition hover:underline flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed min-h-[32px]"
-                    >
-                      💬 Nhắn tin hỏi giá
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1298,14 +1269,19 @@ export default function MarketplaceSpace({
                 <span className="text-[10px] text-stone-400 font-semibold text-center sm:text-left">
                   Hỗ trợ giao dịch trực tiếp an toàn
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsReportModalOpen(true)}
-                  className="text-[10px] text-stone-500 hover:text-rose-600 font-semibold flex items-center gap-1 transition cursor-pointer"
-                  title="Báo cáo tin đăng nếu có dấu hiệu lừa đảo"
-                >
-                  <Flag className="w-3 h-3" /> Báo cáo
-                </button>
+                {!(
+                  selectedDetailProd.authorId &&
+                  selectedDetailProd.authorId === user?.id
+                ) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="text-[10px] text-stone-500 hover:text-rose-600 font-semibold flex items-center gap-1 transition cursor-pointer"
+                    title="Báo cáo tin đăng nếu có dấu hiệu lừa đảo"
+                  >
+                    <Flag className="w-3 h-3" /> Báo cáo
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2.5 justify-end">
@@ -1317,31 +1293,40 @@ export default function MarketplaceSpace({
                   Quay lại danh sách
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    onAddToCart(selectedDetailProd);
-                  }}
-                  disabled={selectedDetailProd.status !== "Đang bán"}
-                  className="bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 font-black px-4.5 py-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer text-xs disabled:opacity-50"
-                  title="Thêm nhanh vào giỏ thanh toán"
-                >
-                  <ShoppingBag className="w-4 h-4 bg-rose-50" />
-                  Thêm giỏ hàng
-                </button>
+                {selectedDetailProd.authorId &&
+                selectedDetailProd.authorId === user?.id ? (
+                  <div className="text-xs text-stone-400 font-semibold py-2 px-4 bg-stone-50 border border-stone-200 rounded-xl flex items-center gap-1.5">
+                    📦 Đây là sản phẩm của bạn
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddToCart(selectedDetailProd);
+                      }}
+                      disabled={selectedDetailProd.status !== "Đang bán"}
+                      className="bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 font-black px-4.5 py-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5 cursor-pointer text-xs disabled:opacity-50"
+                      title="Thêm nhanh vào giỏ thanh toán"
+                    >
+                      <ShoppingBag className="w-4 h-4 bg-rose-50" />
+                      Thêm giỏ hàng
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    onAddToCart(selectedDetailProd);
-                    onSelectProductForChat(selectedDetailProd.id);
-                    setSelectedDetailProd(null);
-                  }}
-                  disabled={selectedDetailProd.status !== "Đang bán"}
-                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs shadow-xs disabled:opacity-50"
-                >
-                  💬 Hỏi mua & Đặt lịch hẹn
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddToCart(selectedDetailProd);
+                        onSelectProductForChat(selectedDetailProd.id);
+                        setSelectedDetailProd(null);
+                      }}
+                      disabled={selectedDetailProd.status !== "Đang bán"}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs shadow-xs disabled:opacity-50"
+                    >
+                      💬 Hỏi mua & Đặt lịch hẹn
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
