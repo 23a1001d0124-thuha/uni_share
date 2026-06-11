@@ -182,26 +182,24 @@ export default function App() {
 
     newSocket.on("new_message", (data: { roomId: string; message: any }) => {
       setChatRooms((prevRooms) => {
-        const roomIndex = prevRooms.findIndex((r) => r.roomId === data.roomId);
-        if (roomIndex === -1) return prevRooms; // room chưa load, bỏ qua
-
-        const room = prevRooms[roomIndex];
-        const exists = room.messages.some((m) => m.id === data.message.id);
-        if (exists) return prevRooms;
-
-        const updatedRoom = {
-          ...room,
-          messages: [...room.messages, data.message],
-        };
         const updatedRooms = [...prevRooms];
-        updatedRooms[roomIndex] = updatedRoom;
-
-        if (activeTab !== "chat" || activeRoomId !== data.roomId) {
-          pushNotification(
-            "Tin nhắn thương lượng mới",
-            `Bạn có thông điệp mới: "${data.message.text.substring(0, 30)}..."`,
-            "message",
+        const roomIndex = updatedRooms.findIndex(
+          (r) => r.roomId === data.roomId,
+        );
+        if (roomIndex > -1) {
+          const exists = updatedRooms[roomIndex].messages.some(
+            (m) => m.id === data.message.id,
           );
+          if (!exists) {
+            updatedRooms[roomIndex].messages.push(data.message);
+            if (activeTab !== "chat" || activeRoomId !== data.roomId) {
+              pushNotification(
+                "Tin nhắn thương lượng mới",
+                `Bạn có thông điệp mới từ phiên đàm phán đồ cũ: "${data.message.text.substring(0, 30)}..."`,
+                "message",
+              );
+            }
+          }
         }
         return updatedRooms;
       });
@@ -384,33 +382,6 @@ export default function App() {
     fetchAllData();
   }, []);
 
-  // Reload chat rooms khi user đăng nhập / đăng xuất
-  useEffect(() => {
-    if (user) {
-      const activeToken = token || localStorage.getItem("unishare_token");
-      fetch("/api/chats", {
-        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success) {
-            setChatRooms(data.chatRooms);
-            // Join tất cả rooms qua socket
-            setSocket((sock) => {
-              if (sock)
-                data.chatRooms.forEach((room: any) =>
-                  sock.emit("join_room", room.roomId),
-                );
-              return sock;
-            });
-          }
-        })
-        .catch(() => {});
-    } else {
-      setChatRooms([]);
-    }
-  }, [user]);
-
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -482,6 +453,11 @@ export default function App() {
   const handleAddToCart = (product: Product) => {
     if (!user) {
       setIsLoginModalOpen(true);
+      return;
+    }
+    // Block seller from buying their own listing
+    if (product.authorId && product.authorId === user.id) {
+      alert("Bạn không thể mua sản phẩm do chính mình đăng bán!");
       return;
     }
     // Unique check
@@ -740,17 +716,8 @@ export default function App() {
           }
           return [data.room, ...prev];
         });
-        // Join socket room ngay sau khi tạo/tìm thấy — để nhận realtime
-        setSocket((sock) => {
-          if (sock) sock.emit("join_room", data.room.roomId);
-          return sock;
-        });
         setActiveRoomId(data.room.roomId);
         setActiveTab("chat");
-        return;
-      }
-      if (!data.success && data.message) {
-        alert(data.message);
         return;
       }
     } catch (e) {
@@ -776,6 +743,7 @@ export default function App() {
 
       const newRoom = {
         roomId,
+        viewerRole: "buyer",
         product: {
           id: targetProduct.id,
           name: targetProduct.name,
@@ -1243,6 +1211,7 @@ export default function App() {
                   onRemoveFromCart={handleRemoveFromCart}
                   onClearCart={handleClearCart}
                   isStudentVerified={profile?.isVerified}
+                  currentUserId={user?.id}
                   onPostMessageMock={handlePostChatMessage}
                   onSubmitNewTransactionNotice={async (pId) => {
                     await handlePostTransactionStatusNotice(pId, "Đã bán");

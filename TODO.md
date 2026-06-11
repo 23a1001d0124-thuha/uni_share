@@ -1,0 +1,5 @@
+- [x] Step 1: Xác định nơi tạo/đẩy cart và cách gán `authorId`.
+- [x] Step 2: Kiểm tra mapping `authorId` từ DB (file `src/lib/readOnlyApiData.ts`).
+- [ ] Step 3: Implement fix: fallback/normalize `authorId` để luôn đúng `user.id`.
+- [ ] Step 4: Thêm hard guard ở server-side (API thay đổi trạng thái/ghi nhận giao dịch) nếu có endpoint.
+- [ ] Step 5: Test luồng: thêm vào giỏ & checkout với listing của chính user; đảm bảo bị chặn.

@@ -35,7 +35,11 @@ const mapProductFromDB = (p: any) => {
         : [],
     school: p.school,
     author: p.author,
-    authorId: p.author_id,
+    // Normalize author id across possible DB column naming
+    authorId:
+      (p.author_id ?? p.authorId ?? p.seller_id ?? p.owner_id ?? "") ?? "",
+
+
     isStudentVerified: p.is_student_verified,
     views: Number(p.views),
     likes: Number(p.likes),
