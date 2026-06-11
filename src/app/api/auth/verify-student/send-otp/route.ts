@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     });
 
     await transporter.sendMail({
-      from: `"UNI-SHARE" <${process.env.SMTP_USER}>`,
+      from: process.env.EMAIL_FROM || `"UNI-SHARE" <${process.env.SMTP_USER}>`,
       to: studentEmail,
       subject: "Mã xác thực sinh viên UNI-SHARE",
       html: `
