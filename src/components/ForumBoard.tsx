@@ -1,5 +1,15 @@
-import React, { useState } from "react";
-import { Megaphone, Users, Plus, Star, Heart, ArrowUp, Check, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Megaphone,
+  Users,
+  Plus,
+  Star,
+  Heart,
+  ArrowUp,
+  Check,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { ForumPost } from "../types";
 
 interface ForumBoardProps {
@@ -8,6 +18,11 @@ interface ForumBoardProps {
   onJoinGroupRequest: (id: string) => Promise<void>;
   onPublishPost: (newPost: any) => Promise<void>;
   onAddComment?: (postId: string, text: string) => Promise<void>;
+  currentUser?: {
+    id: string;
+    displayName: string;
+    universityName?: string;
+  } | null;
 }
 
 export const BULLETIN_TAGS = [
@@ -15,10 +30,17 @@ export const BULLETIN_TAGS = [
   "Gom mua chung",
   "Phòng trọ & Ở ghép",
   "Hoạt động & Sự kiện",
-  "Học tập & Tài liệu"
+  "Học tập & Tài liệu",
 ];
 
-export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, onPublishPost, onAddComment }: ForumBoardProps) {
+export default function ForumBoard({
+  posts,
+  onUpvotePost,
+  onJoinGroupRequest,
+  onPublishPost,
+  onAddComment,
+  currentUser,
+}: ForumBoardProps) {
   const [selectedTag, setSelectedTag] = useState("Tất cả");
   const [isPublishingOpen, setIsPublishingOpen] = useState(false);
 
@@ -29,9 +51,21 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Comments/Discussions Interactive states
-  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
+  const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(
+    null,
+  );
   const [addingCommentText, setAddingCommentText] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  // Auto-scroll to newest comment
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+  const openPost = posts.find((p) => p.id === openCommentsPostId);
+  const commentCount = openPost?.comments?.length ?? 0;
+  useEffect(() => {
+    if (commentsEndRef.current) {
+      commentsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [commentCount]);
 
   const handleCommentSubmit = async (postId: string) => {
     if (!addingCommentText.trim() || !onAddComment) return;
@@ -48,7 +82,7 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
   };
 
   // Filter bulletin posts
-  const filteredPosts = posts.filter(p => {
+  const filteredPosts = posts.filter((p) => {
     if (selectedTag !== "Tất cả" && p.tag !== selectedTag) return false;
     return true;
   });
@@ -66,8 +100,8 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
         title: newTitle,
         tag: newTag,
         content: newContent,
-        author: "Nguyễn Thu Hạ (Bạn)",
-        school: "Đại học Mở Hà Nội"
+        author: currentUser?.displayName || "Sinh viên ẩn danh",
+        school: currentUser?.universityName || "Đại học Mở Hà Nội",
       });
 
       // Reset
@@ -90,9 +124,14 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
           <h3 className="text-lg font-bold text-rose-950 font-display flex items-center gap-2">
             Bản Tin Sinh Viên Toàn Trường
             <Megaphone className="w-4 h-4 text-rose-600 animate-bounce" />
+            <span className="flex items-center gap-1 bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              Trực tiếp
+            </span>
           </h3>
           <p className="text-xs text-rose-800 mt-1">
-            Nơi gom đơn mua chung, tìm phòng ở ghép, lập team học nhóm và đăng ký các hoạt động sinh viên hữu ích.
+            Nơi gom đơn mua chung, tìm phòng ở ghép, lập team học nhóm và đăng
+            ký các hoạt động sinh viên hữu ích.
           </p>
         </div>
 
@@ -135,18 +174,25 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
       {/* Post Feeds list */}
       <div className="space-y-4">
         {filteredPosts.length === 0 ? (
-          <div className="bg-stone-50/50 border border-stone-200 py-12 px-6 text-center rounded-3xl space-y-3 flex flex-col items-center justify-center animate-fadeIn" id="forum-empty-state">
+          <div
+            className="bg-stone-50/50 border border-stone-200 py-12 px-6 text-center rounded-3xl space-y-3 flex flex-col items-center justify-center animate-fadeIn"
+            id="forum-empty-state"
+          >
             <span className="text-4xl block animate-pulse select-none">📣</span>
-            <h4 className="font-bold text-stone-700 text-xs font-display uppercase tracking-wide">Bắc cầu giao lưu sinh viên</h4>
+            <h4 className="font-bold text-stone-700 text-xs font-display uppercase tracking-wide">
+              Bắc cầu giao lưu sinh viên
+            </h4>
             <p className="text-[11px] text-stone-400 max-w-xs mx-auto leading-relaxed">
-              Mục này hiện đang trống. Hãy click nút "Tạo bản tin mới" ở góc trên để kết nối câu chuyện của riêng bạn với sinh viên toàn trường!
+              Mục này hiện đang trống. Hãy click nút "Tạo bản tin mới" ở góc
+              trên để kết nối câu chuyện của riêng bạn với sinh viên toàn
+              trường!
             </p>
           </div>
         ) : (
           filteredPosts.map((post) => {
-            const hasJoined = post.joinedUsers.includes("user_client_default");
+            const hasJoined = post.joinedUsers.includes(currentUser?.id || "");
             return (
-              <div 
+              <div
                 key={post.id}
                 className="bg-white border border-stone-200 rounded-2xl p-5 hover:shadow-xs transition relative space-y-4"
               >
@@ -157,8 +203,12 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                       {post.author[0]}
                     </div>
                     <div>
-                      <span className="font-bold text-stone-900 block">{post.author}</span>
-                      <span className="text-[10px] text-stone-400 block">Trường {post.school}</span>
+                      <span className="font-bold text-stone-900 block">
+                        {post.author}
+                      </span>
+                      <span className="text-[10px] text-stone-400 block">
+                        Trường {post.school}
+                      </span>
                     </div>
                   </div>
                   <span className="bg-rose-50 text-rose-700 rounded-lg py-1 px-3.5 font-bold text-[10px] uppercase tracking-wider">
@@ -181,39 +231,63 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                   <div className="bg-stone-50/50 border border-stone-200/60 rounded-2xl p-3 flex flex-col md:flex-row gap-4 items-start md:items-center mt-2">
                     {post.productImage && (
                       <div className="w-20 h-20 shrink-0 bg-white rounded-xl border border-stone-200 p-1">
-                        <img 
-                          src={post.productImage} 
-                          alt="Gom chung" 
+                        <img
+                          src={post.productImage}
+                          alt="Gom chung"
                           className="w-full h-full object-cover rounded-lg"
                         />
                       </div>
                     )}
                     <div className="flex-1 space-y-2 w-full">
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-stone-700">Mục tiêu gom sỉ</span>
+                        <span className="font-bold text-stone-700">
+                          Mục tiêu gom sỉ
+                        </span>
                         <div className="text-right">
-                          <span className="text-rose-600 font-black text-sm">{(post.currentPrice || 0).toLocaleString("vi-VN")}đ</span>
-                          <span className="text-[10px] text-stone-400 line-through ml-1.5">{(post.originalPrice || 0).toLocaleString("vi-VN")}đ</span>
+                          <span className="text-rose-600 font-black text-sm">
+                            {(post.currentPrice || 0).toLocaleString("vi-VN")}đ
+                          </span>
+                          <span className="text-[10px] text-stone-400 line-through ml-1.5">
+                            {(post.originalPrice || 0).toLocaleString("vi-VN")}đ
+                          </span>
                         </div>
                       </div>
-                      
+
                       {/* Percent progress var */}
                       {(() => {
-                        const progress = Math.min(((post.joinedUsers.length + 1) / (post.targetMembers || 1)) * 100, 100);
-                        const isSuccess = progress >= 100 || post.isGroupBuyCompleted;
+                        const progress = Math.min(
+                          ((post.joinedUsers.length + 1) /
+                            (post.targetMembers || 1)) *
+                            100,
+                          100,
+                        );
+                        const isSuccess =
+                          progress >= 100 || post.isGroupBuyCompleted;
                         return (
                           <>
                             <div className="w-full h-2 bg-stone-200 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full transition-all duration-1000 ${isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                              <div
+                                className={`h-full rounded-full transition-all duration-1000 ${isSuccess ? "bg-emerald-500" : "bg-rose-500"}`}
                                 style={{ width: `${progress}%` }}
                               />
                             </div>
                             <div className="flex justify-between items-center text-[10px]">
-                              <span className="font-semibold text-stone-600">Đã tham gia {post.joinedUsers.length + 1}/{post.targetMembers} người</span>
-                              <span className="font-bold text-emerald-600">- {Math.floor((1 - (post.currentPrice || 0) / (post.originalPrice || 1)) * 100)}%</span>
+                              <span className="font-semibold text-stone-600">
+                                Đã tham gia {post.joinedUsers.length + 1}/
+                                {post.targetMembers} người
+                              </span>
+                              <span className="font-bold text-emerald-600">
+                                -{" "}
+                                {Math.floor(
+                                  (1 -
+                                    (post.currentPrice || 0) /
+                                      (post.originalPrice || 1)) *
+                                    100,
+                                )}
+                                %
+                              </span>
                             </div>
-                            
+
                             {isSuccess && (
                               <div className="mt-1 bg-emerald-50 text-emerald-700 text-[10px] px-2 py-1.5 rounded-lg border border-emerald-100 font-bold flex items-center justify-center animate-pulse">
                                 🎉 GOM THÀNH CÔNG! ĐANG GHÉP ĐƠN COUPON!
@@ -238,7 +312,7 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                       <ArrowUp className="w-4 h-4" />
                       Hữu ích ({post.upvotes})
                     </button>
-                    
+
                     <button
                       onClick={() => {
                         if (openCommentsPostId === post.id) {
@@ -256,12 +330,14 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                   </div>
 
                   {/* Join trigger if group buy or activity */}
-                  {(post.tag === "Gom mua chung" || post.tag === "Hoạt động & Sự kiện" || post.tag === "Phòng trọ & Ở ghép") && (
+                  {(post.tag === "Gom mua chung" ||
+                    post.tag === "Hoạt động & Sự kiện" ||
+                    post.tag === "Phòng trọ & Ở ghép") && (
                     <button
                       onClick={() => onJoinGroupRequest(post.id)}
                       className={`py-1.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1 ${
-                        hasJoined 
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                        hasJoined
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200"
                       }`}
                     >
@@ -284,9 +360,13 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                 {openCommentsPostId === post.id && (
                   <div className="mt-3 pt-4 border-t border-dashed border-stone-200 bg-stone-50/50 p-4 rounded-xl space-y-3.5 animate-fadeIn">
                     <h5 className="font-black text-rose-800 text-[10.5px] uppercase tracking-wide flex flex-col md:flex-row md:items-center justify-between gap-1 pb-1.5 border-b border-stone-150">
-                      <span>💬 PHÒNG THẢO LUẬN KHUÔN VIÊN TRƯỜNG ({post.commentsCount} Bình luận)</span>
+                      <span>
+                        💬 PHÒNG THẢO LUẬN KHUÔN VIÊN TRƯỜNG (
+                        {post.commentsCount} Bình luận)
+                      </span>
                       <span className="text-[9px] font-medium text-stone-500 normal-case italic block">
-                        Đọc & gửi thảo luận trao đổi cùng mọi học sinh. Bình luận mới được tính vào tổng thảo luận ngoài.
+                        Đọc & gửi thảo luận trao đổi cùng mọi học sinh. Bình
+                        luận mới được tính vào tổng thảo luận ngoài.
                       </span>
                     </h5>
 
@@ -294,20 +374,37 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                     <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                       {!post.comments || post.comments.length === 0 ? (
                         <p className="text-[11px] text-stone-400 font-medium italic py-2 text-center bg-white rounded-xl border border-stone-100">
-                          Chưa có thảo luận nào cho bài viết này. Hãy đăng bình luận đầu tiên bên dưới để trao đổi cùng bạn học!
+                          Chưa có thảo luận nào cho bài viết này. Hãy đăng bình
+                          luận đầu tiên bên dưới để trao đổi cùng bạn học!
                         </p>
                       ) : (
-                        post.comments.map((comment) => (
-                          <div key={comment.id} className="bg-white p-3 rounded-xl border border-stone-150 shadow-3xs space-y-1">
-                            <div className="flex justify-between items-center text-[10px]">
-                              <span className="font-bold text-rose-700">{comment.author}</span>
-                              <span className="text-stone-400 text-[9px]">{comment.school}</span>
+                        <>
+                          {post.comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="bg-white p-3 rounded-xl border border-stone-150 shadow-3xs space-y-1"
+                            >
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="font-bold text-rose-700">
+                                  {comment.author}
+                                </span>
+                                <span className="text-stone-400 text-[9px]">
+                                  {comment.school}
+                                </span>
+                              </div>
+                              <p className="text-stone-700 text-xs font-medium leading-relaxed">
+                                {comment.content}
+                              </p>
                             </div>
-                            <p className="text-stone-700 text-xs font-medium leading-relaxed">
-                              {comment.content}
-                            </p>
-                          </div>
-                        ))
+                          ))}
+                          <div
+                            ref={
+                              openCommentsPostId === post.id
+                                ? commentsEndRef
+                                : null
+                            }
+                          />
+                        </>
                       )}
                     </div>
 
@@ -327,7 +424,9 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
                       />
                       <button
                         onClick={() => handleCommentSubmit(post.id)}
-                        disabled={isSubmittingComment || !addingCommentText.trim()}
+                        disabled={
+                          isSubmittingComment || !addingCommentText.trim()
+                        }
                         className="bg-stone-900 hover:bg-stone-950 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-4.5 rounded-xl transition cursor-pointer whitespace-nowrap"
                       >
                         {isSubmittingComment ? "Đang gửi..." : "Gửi"}
@@ -344,15 +443,17 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
       {/* MODAL: WRITE BULLETIN NEW CORNER */}
       {isPublishingOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <form 
+          <form
             onSubmit={handlePublishSubmit}
             className="bg-white w-full max-w-lg rounded-2xl overflow-hidden shadow-xl max-h-[95vh] flex flex-col"
           >
             {/* Header */}
             <div className="bg-rose-600 p-4 text-white flex justify-between items-center">
-              <h3 className="font-semibold text-base font-display">Tạo Bài Đăng Bản Tin Mới</h3>
-              <button 
-                type="button" 
+              <h3 className="font-semibold text-base font-display">
+                Tạo Bài Đăng Bản Tin Mới
+              </h3>
+              <button
+                type="button"
                 onClick={() => setIsPublishingOpen(false)}
                 className="text-white hover:text-white/80 font-bold"
               >
@@ -363,7 +464,9 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
             {/* Inputs Body */}
             <div className="p-6 space-y-4 overflow-y-auto text-sm">
               <div className="space-y-1">
-                <label className="text-stone-700 font-bold">Tiêu đề bản tin *</label>
+                <label className="text-stone-700 font-bold">
+                  Tiêu đề bản tin *
+                </label>
                 <input
                   type="text"
                   required
@@ -375,20 +478,26 @@ export default function ForumBoard({ posts, onUpvotePost, onJoinGroupRequest, on
               </div>
 
               <div className="space-y-1">
-                <label className="text-stone-700 font-bold">Chuyên mục bản tin *</label>
+                <label className="text-stone-700 font-bold">
+                  Chuyên mục bản tin *
+                </label>
                 <select
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   className="w-full p-2.5 bg-stone-50 border border-stone-250 rounded-xl"
                 >
                   {BULLETIN_TAGS.map((tag) => (
-                    <option key={tag} value={tag}>{tag}</option>
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-stone-700 font-bold">Nội dung chi tiết *</label>
+                <label className="text-stone-700 font-bold">
+                  Nội dung chi tiết *
+                </label>
                 <textarea
                   required
                   rows={4}

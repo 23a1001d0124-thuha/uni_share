@@ -114,10 +114,21 @@ const mapForumPostFromDB = (f: any, comments: any[] = []) => {
   };
 };
 
-const assembleChatRoom = async (room: any, allProducts: any[], messagesList: any[]) => {
+/**
+ * Assemble a ChatRoom object from DB records.
+ * Buyer info is loaded from the `users` table using room.buyer_id.
+ * Pass `allUsers` (pre-fetched) to avoid N+1 queries.
+ */
+const assembleChatRoom = (
+  room: any,
+  allProducts: any[],
+  messagesList: any[],
+  allUsers: any[] = []
+) => {
   if (!room) return null;
 
   const product = allProducts.find((p) => p.id === room.product_id);
+
   const roomMessages = messagesList
     .filter((m) => m.room_id === room.id)
     .map((m) => ({
@@ -126,6 +137,12 @@ const assembleChatRoom = async (room: any, allProducts: any[], messagesList: any
       text: m.text,
       timestamp: m.timestamp,
     }));
+
+  // Resolve buyer from users table (no more hardcode)
+  const buyerRecord = allUsers.find((u) => u.id === room.buyer_id);
+  const sellerRecord = allUsers.find(
+    (u) => u.id === (room.seller_id || (product ? product.authorId : null))
+  );
 
   return {
     roomId: room.id,
@@ -140,13 +157,19 @@ const assembleChatRoom = async (room: any, allProducts: any[], messagesList: any
       school: product ? product.school : "Chưa rõ",
     },
     buyer: {
-      id: room.buyer_id || "user_client_default",
-      name: "Sinh viên Nguyễn Thu Hạ (Bạn)",
-      school: "Đại học Mở Hà Nội",
+      id: room.buyer_id || "unknown",
+      name: buyerRecord?.display_name || buyerRecord?.displayName || "Người mua",
+      school:
+        buyerRecord?.university_short_name ||
+        buyerRecord?.university_name ||
+        buyerRecord?.universityName ||
+        "Chưa rõ",
     },
     seller: {
       id: room.seller_id || (product ? product.authorId : "unknown"),
-      name: product ? product.author : "Người bán ẩn danh",
+      name: product
+        ? product.author
+        : sellerRecord?.display_name || "Người bán ẩn danh",
       school: product ? product.school : "Chưa rõ",
       isStudentVerified: product ? product.isStudentVerified : true,
     },
@@ -211,20 +234,18 @@ export async function getForumData() {
         .order("created_at", { ascending: false });
 
       const { data: comments } = await supabase
-        .from("forum_comments")
+        .from("comments")
         .select("*")
         .order("created_at", { ascending: true });
 
       if (!postsError && posts) {
-        const forumPosts = posts.map((post) => {
+        const mappedPosts = posts.map((post) => {
           const postComments = (comments || [])
-            .filter((comment) => comment.post_id === post.id)
+            .filter((c) => c.post_id === post.id)
             .map(mapCommentFromDB);
-
           return mapForumPostFromDB(post, postComments);
         });
-
-        return { success: true, forumPosts };
+        return { success: true, forumPosts: mappedPosts };
       }
 
       console.error("Supabase forum fetch failed:", postsError);
@@ -236,23 +257,40 @@ export async function getForumData() {
   return { success: true, forumPosts: INITIAL_FORUM_POSTS };
 }
 
-export async function getChatsData() {
+/**
+ * Fetch all chat rooms for a specific user (buyer).
+ * Pass userId to filter only rooms belonging to that user.
+ * If userId is omitted, returns all rooms (admin/fallback use only).
+ */
+export async function getChatsData(userId?: string) {
   const supabase = createSupabaseClient();
 
   if (supabase) {
     try {
-      const { data: rooms, error: roomsError } = await supabase.from("chat_rooms").select("*");
+      // Build query — filter by buyer_id when userId is provided
+      let roomsQuery = supabase.from("chat_rooms").select("*");
+      if (userId) {
+        roomsQuery = roomsQuery.eq("buyer_id", userId);
+      }
+
+      const { data: rooms, error: roomsError } = await roomsQuery;
       const { data: products } = await supabase.from("products").select("*");
       const { data: messages } = await supabase
         .from("messages")
         .select("*")
         .order("timestamp", { ascending: true });
 
+      // Pre-fetch all users referenced in these rooms to resolve names
+      const { data: users } = await supabase.from("users").select("*");
+
       if (!roomsError && rooms) {
         const allProducts = (products || []).map(mapProductFromDB);
-        const chatRooms = await Promise.all(
-          rooms.map((room) => assembleChatRoom(room, allProducts, messages || []))
-        );
+        const allUsers = users || [];
+        const chatRooms = rooms
+          .map((room) =>
+            assembleChatRoom(room, allProducts, messages || [], allUsers)
+          )
+          .filter(Boolean);
 
         return { success: true, chatRooms };
       }
@@ -263,5 +301,12 @@ export async function getChatsData() {
     }
   }
 
-  return { success: true, chatRooms: INITIAL_CHAT_ROOMS };
+  // Fallback: return hardcoded data filtered by userId if possible
+  const fallback = userId
+    ? INITIAL_CHAT_ROOMS.filter(
+        (r: any) => r.buyer?.id === userId || r.buyer?.id === "user_client_default"
+      )
+    : INITIAL_CHAT_ROOMS;
+
+  return { success: true, chatRooms: fallback };
 }

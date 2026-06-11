@@ -166,7 +166,7 @@ export default function App() {
   };
 
   // AuthContext and Verification modals bindings
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -182,31 +182,61 @@ export default function App() {
 
     newSocket.on("new_message", (data: { roomId: string; message: any }) => {
       setChatRooms((prevRooms) => {
+        const roomIndex = prevRooms.findIndex((r) => r.roomId === data.roomId);
+        if (roomIndex === -1) return prevRooms; // room chưa load, bỏ qua
+
+        const room = prevRooms[roomIndex];
+        const exists = room.messages.some((m) => m.id === data.message.id);
+        if (exists) return prevRooms;
+
+        const updatedRoom = {
+          ...room,
+          messages: [...room.messages, data.message],
+        };
         const updatedRooms = [...prevRooms];
-        const roomIndex = updatedRooms.findIndex(
-          (r) => r.roomId === data.roomId,
-        );
-        if (roomIndex > -1) {
-          const exists = updatedRooms[roomIndex].messages.some(
-            (m) => m.id === data.message.id,
+        updatedRooms[roomIndex] = updatedRoom;
+
+        if (activeTab !== "chat" || activeRoomId !== data.roomId) {
+          pushNotification(
+            "Tin nhắn thương lượng mới",
+            `Bạn có thông điệp mới: "${data.message.text.substring(0, 30)}..."`,
+            "message",
           );
-          if (!exists) {
-            updatedRooms[roomIndex].messages.push(data.message);
-            if (activeTab !== "chat" || activeRoomId !== data.roomId) {
-              pushNotification(
-                "Tin nhắn thương lượng mới",
-                `Bạn có thông điệp mới từ phiên đàm phán đồ cũ: "${data.message.text.substring(0, 30)}..."`,
-                "message",
-              );
-            }
-          }
         }
         return updatedRooms;
       });
     });
 
+    // Real-time: bình luận mới trên bất kỳ bài đăng forum nào
+    newSocket.on(
+      "forum_new_comment",
+      (data: { postId: string; post: ForumPost }) => {
+        setForumPosts((prev) =>
+          prev.map((p) => (p.id === data.postId ? data.post : p)),
+        );
+      },
+    );
+
+    // Real-time: bài đăng mới từ sinh viên khác
+    newSocket.on("forum_new_post", (newPost: ForumPost) => {
+      setForumPosts((prev) => {
+        // Tránh duplicate nếu chính mình vừa đăng
+        if (prev.some((p) => p.id === newPost.id)) return prev;
+        if (activeTab !== "forum") {
+          pushNotification(
+            "Bản tin mới 📣",
+            `${newPost.author} vừa đăng: "${newPost.title}"`,
+            "info",
+          );
+        }
+        return [newPost, ...prev];
+      });
+    });
+
     return () => {
       newSocket.off("new_message");
+      newSocket.off("forum_new_comment");
+      newSocket.off("forum_new_post");
       newSocket.disconnect();
     };
   }, [activeTab, activeRoomId]);
@@ -275,8 +305,12 @@ export default function App() {
       const fData = await fRes.json();
       if (fData.success) setForumPosts(fData.forumPosts);
 
-      // 4. Fetch chats
-      const cRes = await fetch("/api/chats");
+      // 4. Fetch chats — gửi token để server filter đúng rooms của user
+      const activeToken = token || localStorage.getItem("unishare_token");
+      const cHeaders: HeadersInit = activeToken
+        ? { Authorization: `Bearer ${activeToken}` }
+        : {};
+      const cRes = await fetch("/api/chats", { headers: cHeaders });
       const cData = await cRes.json();
       if (cData.success) {
         setChatRooms(cData.chatRooms);
@@ -350,6 +384,33 @@ export default function App() {
     fetchAllData();
   }, []);
 
+  // Reload chat rooms khi user đăng nhập / đăng xuất
+  useEffect(() => {
+    if (user) {
+      const activeToken = token || localStorage.getItem("unishare_token");
+      fetch("/api/chats", {
+        headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            setChatRooms(data.chatRooms);
+            // Join tất cả rooms qua socket
+            setSocket((sock) => {
+              if (sock)
+                data.chatRooms.forEach((room: any) =>
+                  sock.emit("join_room", room.roomId),
+                );
+              return sock;
+            });
+          }
+        })
+        .catch(() => {});
+    } else {
+      setChatRooms([]);
+    }
+  }, [user]);
+
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -382,7 +443,7 @@ export default function App() {
           : ["https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600"],
       school: (newProductPayload.school || profile?.school) ?? "",
       author: (newProductPayload.author || profile?.name) ?? "",
-      authorId: "user_client_default",
+      authorId: user?.id || "unknown",
       isStudentVerified: true,
       views: 1,
       likes: 0,
@@ -391,10 +452,14 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
+    const activeToken = token || localStorage.getItem("unishare_token");
     try {
       const res = await fetch("/api/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
         body: JSON.stringify(newProductPayload),
       });
       const data = await res.json();
@@ -651,45 +716,57 @@ export default function App() {
       setIsLoginModalOpen(true);
       return;
     }
+
+    const activeToken = token || localStorage.getItem("unishare_token");
+
     try {
       const res = await fetch("/api/chats/find-or-create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          buyerId: "user_client_default",
-          sellerId: "",
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        body: JSON.stringify({ productId }),
       });
       const data = await res.json();
-      if (data.success) {
-        // Reload chats in backend
-        const cRes = await fetch("/api/chats");
-        const cData = await cRes.json();
-        if (cData.success) {
-          setChatRooms(cData.chatRooms);
-          setActiveRoomId(data.room.roomId);
-          setActiveTab("chat"); // change tab immediately!
-          return;
-        }
+      if (data.success && data.room) {
+        // Upsert room vào state (thêm mới hoặc cập nhật nếu đã có)
+        setChatRooms((prev) => {
+          const idx = prev.findIndex((r) => r.roomId === data.room.roomId);
+          if (idx > -1) {
+            const updated = [...prev];
+            updated[idx] = data.room;
+            return updated;
+          }
+          return [data.room, ...prev];
+        });
+        // Join socket room ngay sau khi tạo/tìm thấy — để nhận realtime
+        setSocket((sock) => {
+          if (sock) sock.emit("join_room", data.room.roomId);
+          return sock;
+        });
+        setActiveRoomId(data.room.roomId);
+        setActiveTab("chat");
+        return;
+      }
+      if (!data.success && data.message) {
+        alert(data.message);
+        return;
       }
     } catch (e) {
-      console.warn(
-        "Backend chat setup failed. Initiating instant local matchmaking chat room:",
-        e,
-      );
+      console.warn("Backend find-or-create failed:", e);
     }
 
-    // Client-side local updater
+    // Fallback client-side (khi server không khả dụng)
     const targetProduct = products.find((p) => p.id === productId);
     if (!targetProduct) return;
 
-    const roomId = `room_local_${productId}`;
+    const roomId = `room_local_${productId}_${user.id}`;
     setChatRooms((prev) => {
       const existingRoom = prev.find(
         (r) =>
           r.roomId === roomId ||
-          (r.product.id === productId && r.buyer.id === "user_client_default"),
+          (r.product.id === productId && r.buyer.id === user.id),
       );
       if (existingRoom) {
         setActiveRoomId(existingRoom.roomId);
@@ -697,7 +774,7 @@ export default function App() {
         return prev;
       }
 
-      const newRoom: ChatRoom = {
+      const newRoom = {
         roomId,
         product: {
           id: targetProduct.id,
@@ -709,9 +786,9 @@ export default function App() {
           school: targetProduct.school,
         },
         buyer: {
-          id: "user_client_default",
-          name: profile?.name ?? "",
-          school: profile?.school ?? "",
+          id: user.id,
+          name: user.displayName,
+          school: user.universityShortName || user.universityName || "Chưa rõ",
         },
         seller: {
           id: targetProduct.authorId || "seller_id",
@@ -729,11 +806,9 @@ export default function App() {
         ],
       };
 
-      const updated = [newRoom, ...prev];
-      localStorage.setItem("uni_local_chat_rooms", JSON.stringify(updated));
       setActiveRoomId(roomId);
       setActiveTab("chat");
-      return updated;
+      return [newRoom, ...prev];
     });
   };
 
@@ -743,14 +818,17 @@ export default function App() {
       setIsLoginModalOpen(true);
       return;
     }
+
+    const activeToken = token || localStorage.getItem("unishare_token");
+
     try {
       const res = await fetch(`/api/chats/${roomId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          senderId: "user_client_default",
-          text,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
+        },
+        body: JSON.stringify({ text }),
       });
       const data = await res.json();
       if (data.success) {
@@ -760,33 +838,25 @@ export default function App() {
         return;
       }
     } catch (e) {
-      console.warn(
-        "Backend chat message post offline. Submitting message locally:",
-        e,
-      );
+      console.warn("Backend message post failed:", e);
     }
 
-    // Client-side local message updater
+    // Fallback: thêm tin nhắn trực tiếp vào local state
     const newMessage = {
       id: "msg_" + Date.now(),
-      senderId: "user_client_default",
+      senderId: user.id,
       text,
       timestamp: new Date().toISOString(),
     };
 
-    setChatRooms((prev) => {
-      const updated = prev.map((room) => {
+    setChatRooms((prev) =>
+      prev.map((room) => {
         if (room.roomId === roomId) {
-          return {
-            ...room,
-            messages: [...(room.messages || []), newMessage],
-          };
+          return { ...room, messages: [...(room.messages || []), newMessage] };
         }
         return room;
-      });
-      localStorage.setItem("uni_local_chat_rooms", JSON.stringify(updated));
-      return updated;
-    });
+      }),
+    );
   };
 
   // Mutate product sales status (Sold / Pending)
@@ -1133,6 +1203,7 @@ export default function App() {
               {activeTab === "chat" && (
                 <ChatWorkspace
                   rooms={chatRooms}
+                  currentUserId={user?.id || ""}
                   activeRoomId={activeRoomId}
                   onSelectRoom={setActiveRoomId}
                   onPostMessage={handlePostChatMessage}

@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from "react";
-import { Send, MapPin, Tag, ShieldCheck, Sparkles, AlertCircle, TrendingDown, HelpCircle, Loader2 } from "lucide-react";
+import {
+  Send,
+  MapPin,
+  Tag,
+  ShieldCheck,
+  Sparkles,
+  AlertCircle,
+  TrendingDown,
+  HelpCircle,
+  Loader2,
+} from "lucide-react";
 import { ChatRoom, Product, Message } from "../types";
 
 interface ChatWorkspaceProps {
+  currentUserId: string;
   rooms: ChatRoom[];
   activeRoomId: string;
   onSelectRoom: (roomId: string) => void;
   onPostMessage: (roomId: string, text: string) => Promise<void>;
-  onLockInTransaction: (productId: string, status: "Đang chờ" | "Đã bán") => Promise<void>;
+  onLockInTransaction: (
+    productId: string,
+    status: "Đang chờ" | "Đã bán",
+  ) => Promise<void>;
 }
 
 export default function ChatWorkspace({
@@ -15,13 +29,16 @@ export default function ChatWorkspace({
   activeRoomId,
   onSelectRoom,
   onPostMessage,
-  onLockInTransaction
+  onLockInTransaction,
+  currentUserId,
 }: ChatWorkspaceProps) {
   const [inputText, setInputText] = useState("");
   const activeRoom = rooms.find((r) => r.roomId === activeRoomId) || rooms[0];
 
   // Mobile navigation tab representation (Messenger style)
-  const [mobileActiveTab, setMobileActiveTab] = useState<"rooms" | "chat" | "pricing">(activeRoomId ? "chat" : "rooms");
+  const [mobileActiveTab, setMobileActiveTab] = useState<
+    "rooms" | "chat" | "pricing"
+  >(activeRoomId ? "chat" : "rooms");
 
   useEffect(() => {
     if (activeRoomId) {
@@ -83,7 +100,9 @@ export default function ChatWorkspace({
   const triggerSendCoupon = async () => {
     if (!activeRoom) return;
     const codes = ["MATCH20K", "UNIDISC5", "SINHVIENOK", "K62DEAL"];
-    const coupon = codes[Math.floor(Math.random() * codes.length)] + Math.floor(Math.random() * 900 + 100);
+    const coupon =
+      codes[Math.floor(Math.random() * codes.length)] +
+      Math.floor(Math.random() * 900 + 100);
     const textMsg = `🎫 [GỬI MÃ GIẢM GIÁ]: Nhượng lại mã giảm giá StudentPay đặc quyền cho bạn: **${coupon}** (Giảm ngay 15% khi thanh toán hoặc thanh toán bằng MoMo). Giao dịch an toàn nha!`;
     try {
       await onPostMessage(activeRoom.roomId, textMsg);
@@ -118,8 +137,8 @@ export default function ChatWorkspace({
           name: activeRoom.product.name,
           condition: "Cũ sài lướt đẹp",
           originalPrice: activeRoom.product.price * 2, // approximation fallback
-          description: "Mô tả đồ cũ sinh viên"
-        })
+          description: "Mô tả đồ cũ sinh viên",
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -136,23 +155,35 @@ export default function ChatWorkspace({
 
   if (rooms.length === 0 || !activeRoom) {
     return (
-      <div className="bg-stone-50 border border-stone-200 rounded-2xl py-12 p-6 text-center" id="chat-workspace">
+      <div
+        className="bg-stone-50 border border-stone-200 rounded-2xl py-12 p-6 text-center"
+        id="chat-workspace"
+      >
         <HelpCircle className="w-12 h-12 text-stone-300 mx-auto mb-3 animate-pulse" />
-        <h4 className="text-stone-700 font-semibold text-lg">Chưa kết nối cuộc gọi chat nào</h4>
+        <h4 className="text-stone-700 font-semibold text-lg">
+          Chưa kết nối cuộc gọi chat nào
+        </h4>
         <p className="text-stone-500 text-sm mt-1 max-w-sm mx-auto">
-          Hãy tìm kiếm các sản phẩm trong mục "Kinh tế" hoặc lướt "Tinder Match" để hỏi mua sản phẩm từ bạn học khác.
+          Hãy tìm kiếm các sản phẩm trong mục "Kinh tế" hoặc lướt "Tinder Match"
+          để hỏi mua sản phẩm từ bạn học khác.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[580px]" id="chat-workspace">
-      
+    <div
+      className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[580px]"
+      id="chat-workspace"
+    >
       {/* 1. ROOMS LEFT LIST PANEL (3 Cols) */}
-      <div className={`${mobileActiveTab === "rooms" ? "flex" : "hidden lg:flex"} lg:col-span-3 bg-white border border-stone-200 rounded-2xl p-3 space-y-2 flex-col h-full overflow-hidden`}>
-        <span className="text-[10px] text-stone-400 font-black tracking-wider uppercase block px-2">HỘI THOẠI GIAO DỊCH ({rooms.length})</span>
-        
+      <div
+        className={`${mobileActiveTab === "rooms" ? "flex" : "hidden lg:flex"} lg:col-span-3 bg-white border border-stone-200 rounded-2xl p-3 space-y-2 flex-col h-full overflow-hidden`}
+      >
+        <span className="text-[10px] text-stone-400 font-black tracking-wider uppercase block px-2">
+          HỘI THOẠI GIAO DỊCH ({rooms.length})
+        </span>
+
         <div className="space-y-1.5 flex-1 overflow-y-auto">
           {rooms.map((room) => {
             const isSelected = room.roomId === activeRoom.roomId;
@@ -165,27 +196,38 @@ export default function ChatWorkspace({
                   setMobileActiveTab("chat");
                 }}
                 className={`w-full text-left p-2.5 rounded-xl transition cursor-pointer flex gap-2.5 border items-start ${
-                  isSelected 
-                    ? "bg-rose-50/70 border-rose-200 text-rose-950" 
+                  isSelected
+                    ? "bg-rose-50/70 border-rose-200 text-rose-950"
                     : "bg-white border-transparent hover:bg-stone-50 text-stone-800"
                 }`}
               >
-                <img 
-                  src={room.product.image} 
-                  alt={room.product.name} 
+                <img
+                  src={room.product.image}
+                  alt={room.product.name}
                   className="w-9 h-9 object-cover rounded-lg border border-stone-200 shrink-0 mt-0.5"
                   referrerPolicy="no-referrer"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
-                    <span className="font-bold text-xs truncate max-w-[80px]" title={room.seller.name}>
-                      {room.seller.name}
+                    <span
+                      className="font-bold text-xs truncate max-w-[80px]"
+                      title={
+                        room.viewerRole === "seller"
+                          ? room.buyer.name
+                          : room.seller.name
+                      }
+                    >
+                      {room.viewerRole === "seller"
+                        ? room.buyer.name
+                        : room.seller.name}
                     </span>
                     <span className="text-[9px] text-stone-400">
                       {room.product.school.split(" ").pop()}
                     </span>
                   </div>
-                  <p className="text-[11px] font-medium text-stone-600 truncate mt-0.5">{room.product.name}</p>
+                  <p className="text-[11px] font-medium text-stone-600 truncate mt-0.5">
+                    {room.product.name}
+                  </p>
                   <p className="text-[10px] text-stone-400 truncate mt-1">
                     {lastMsg ? lastMsg.text : "Chưa có lời thắc mắc"}
                   </p>
@@ -197,7 +239,9 @@ export default function ChatWorkspace({
       </div>
 
       {/* 2. CHAT FEED & MESSAGE AREA (6 Cols) */}
-      <div className={`${mobileActiveTab === "chat" ? "flex" : "hidden lg:flex"} lg:col-span-6 bg-white border border-stone-200 rounded-2xl flex-col justify-between overflow-hidden relative h-full`}>
+      <div
+        className={`${mobileActiveTab === "chat" ? "flex" : "hidden lg:flex"} lg:col-span-6 bg-white border border-stone-200 rounded-2xl flex-col justify-between overflow-hidden relative h-full`}
+      >
         {/* Chat partner header banner */}
         <div className="bg-stone-50 border-b border-stone-200 p-3 px-4 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -208,27 +252,38 @@ export default function ChatWorkspace({
               title="Quay lại danh sách chat"
               type="button"
             >
-              <svg className="w-5 h-5 stroke-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5 stroke-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
 
             <div className="w-8 h-8 rounded-full bg-rose-200 border border-rose-300 flex items-center justify-center font-bold text-rose-800 text-xs shrink-0 select-none">
-              {activeRoom.seller.name[0]}
+              {chatPartner?.name?.[0] ?? "?"}
             </div>
             <div className="min-w-0">
               <span className="font-bold text-stone-900 text-xs flex items-center gap-1 truncate pb-0.5">
-                {activeRoom.seller.name}
-                {activeRoom.seller.isStudentVerified && (
+                {chatPartner?.name ?? "Đối phương"}
+                {chatPartner?.isStudentVerified && (
                   <span className="bg-emerald-100 text-emerald-800 text-[8px] px-1.5 py-0.2 rounded-full font-black border border-emerald-250 shrink-0">
                     SV Verified
                   </span>
                 )}
               </span>
-              <span className="text-stone-400 text-[9px] block truncate font-medium">Trường: {activeRoom.seller.school}</span>
+              <span className="text-stone-400 text-[9px] block truncate font-medium">
+                Trường: {chatPartner?.school ?? "Chưa rõ"}
+              </span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2.5 shrink-0">
             {/* Interactive short-cut to AI Pricing analyst on mobile with Sparkles */}
             <button
@@ -242,7 +297,9 @@ export default function ChatWorkspace({
             </button>
 
             <div className="text-right">
-              <span className="text-[10px] text-stone-400 block font-semibold uppercase">GIÁ CHỐT</span>
+              <span className="text-[10px] text-stone-400 block font-semibold uppercase">
+                GIÁ CHỐT
+              </span>
               <span className="font-extrabold text-xs text-rose-600 font-display">
                 {activeRoom.product.price.toLocaleString()}đ
               </span>
@@ -253,49 +310,69 @@ export default function ChatWorkspace({
         {/* Message Feeds Scroll content */}
         <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-stone-50/30">
           {activeRoom.messages.length === 0 ? (
-            <div className="my-auto py-12 p-6 text-center space-y-3 flex flex-col items-center justify-center h-full animate-fadeIn" id="chat-empty-state">
-              <span className="text-4xl block animate-bounce select-none">💬</span>
-              <h4 className="font-bold text-stone-700 text-xs font-display">PHÒNG ĐÀM PHÁN UNI-SHARE</h4>
+            <div
+              className="my-auto py-12 p-6 text-center space-y-3 flex flex-col items-center justify-center h-full animate-fadeIn"
+              id="chat-empty-state"
+            >
+              <span className="text-4xl block animate-bounce select-none">
+                💬
+              </span>
+              <h4 className="font-bold text-stone-700 text-xs font-display">
+                PHÒNG ĐÀM PHÁN UNI-SHARE
+              </h4>
               <p className="text-[11px] text-stone-400 max-w-xs mx-auto leading-relaxed">
-                Độ an toàn 100%. Hãy nhanh tay gửi câu hỏi thương lượng lịch sự bên dưới để liên lạc và chốt lịch bàn giao đồ!
+                Độ an toàn 100%. Hãy nhanh tay gửi câu hỏi thương lượng lịch sự
+                bên dưới để liên lạc và chốt lịch bàn giao đồ!
               </p>
             </div>
           ) : (
             activeRoom.messages.map((msg) => {
-              const isMe = msg.senderId === "user_client_default";
+              const isMe = currentUserId && msg.senderId === currentUserId;
               const isSys = msg.senderId === "system";
-              
+
               if (isSys) {
                 return (
-                  <div key={msg.id} className="bg-amber-50 border border-amber-200 text-stone-800 text-xs p-3 rounded-xl max-w-lg mx-auto space-y-1">
+                  <div
+                    key={msg.id}
+                    className="bg-amber-50 border border-amber-200 text-stone-800 text-xs p-3 rounded-xl max-w-lg mx-auto space-y-1"
+                  >
                     <div className="flex items-center gap-1.5 font-bold text-amber-950">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
                       UNI-SHARE HỖ TRỢ XÁC MINH GIAO DỊCH
                     </div>
-                    <p className="leading-relaxed font-medium text-[11px]">{msg.text}</p>
+                    <p className="leading-relaxed font-medium text-[11px]">
+                      {msg.text}
+                    </p>
                   </div>
                 );
               }
 
               return (
-                <div 
-                  key={msg.id} 
+                <div
+                  key={msg.id}
                   className={`flex ${isMe ? "justify-end" : "justify-start"} items-end gap-2.5`}
                 >
                   {!isMe && (
                     <div className="w-6 h-6 rounded-full bg-stone-200 border border-stone-300 flex items-center justify-center font-bold text-stone-700 text-[10px] shrink-0">
-                      {activeRoom.seller.name[0]}
+                      {chatPartner?.name?.[0] ?? "?"}
                     </div>
                   )}
-                  
-                  <div className={`p-3 rounded-2xl text-xs max-w-[75%] leading-relaxed ${
-                    isMe 
-                      ? "bg-rose-600 text-white rounded-br-none" 
-                      : "bg-white text-stone-850 border border-stone-200 rounded-bl-none"
-                  }`}>
+
+                  <div
+                    className={`p-3 rounded-2xl text-xs max-w-[75%] leading-relaxed ${
+                      isMe
+                        ? "bg-rose-600 text-white rounded-br-none"
+                        : "bg-white text-stone-850 border border-stone-200 rounded-bl-none"
+                    }`}
+                  >
                     <p className="text-xs">{msg.text}</p>
-                    <span className={`block text-[9px] mt-1 text-right ${isMe ? "text-rose-200/90" : "text-stone-400"}`}>
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span
+                      className={`block text-[9px] mt-1 text-right ${isMe ? "text-rose-200/90" : "text-stone-400"}`}
+                    >
+                      {new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
                   </div>
                 </div>
@@ -316,7 +393,7 @@ export default function ChatWorkspace({
             <MapPin className="w-3.5 h-3.5 text-stone-400" />
             Xét Hẹn Gặp
           </button>
-          
+
           <button
             onClick={triggerSendCoupon}
             className="bg-white hover:bg-stone-100 text-stone-700 text-[10px] font-bold py-2 rounded-xl border border-stone-250 flex items-center justify-center gap-1 shadow-2xs cursor-pointer min-h-[44px]"
@@ -339,7 +416,10 @@ export default function ChatWorkspace({
         </div>
 
         {/* Active Typing Input Area */}
-        <form onSubmit={handleSend} className="bg-white p-3 border-t border-stone-205 flex gap-2 shrink-0 items-end">
+        <form
+          onSubmit={handleSend}
+          className="bg-white p-3 border-t border-stone-205 flex gap-2 shrink-0 items-end"
+        >
           <textarea
             ref={textareaRef}
             rows={1}
@@ -354,7 +434,7 @@ export default function ChatWorkspace({
             }}
             className="flex-1 p-2.5 bg-stone-50 border border-stone-250 rounded-xl text-stone-800 text-xs focus:outline-hidden focus:border-rose-500 focus:bg-white transition resize-none min-h-[44px] max-h-[120px] overflow-y-auto leading-relaxed"
           />
-          <button 
+          <button
             type="submit"
             className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl p-2.5 px-4 flex items-center justify-center transition cursor-pointer min-h-[44px]"
             aria-label="Gửi tin nhắn"
@@ -365,12 +445,16 @@ export default function ChatWorkspace({
       </div>
 
       {/* 3. RIGHT AI SIDE DRAWER (3 Cols) */}
-      <div className={`${mobileActiveTab === "pricing" ? "flex" : "hidden lg:flex"} lg:col-span-3 bg-amber-50/50 border border-amber-100 rounded-2xl p-4 flex-col justify-between overflow-y-auto h-full`}>
+      <div
+        className={`${mobileActiveTab === "pricing" ? "flex" : "hidden lg:flex"} lg:col-span-3 bg-amber-50/50 border border-amber-100 rounded-2xl p-4 flex-col justify-between overflow-y-auto h-full`}
+      >
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-2.5 border-b border-amber-200">
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4.5 h-4.5 text-amber-600 fill-amber-500 animate-spin" />
-              <span className="font-bold text-amber-900 text-xs font-display">QUẦY ĐỊNH GIÁ AI ĐỒ CŨ</span>
+              <span className="font-bold text-amber-900 text-xs font-display">
+                QUẦY ĐỊNH GIÁ AI ĐỒ CŨ
+              </span>
             </div>
 
             <button
@@ -381,9 +465,11 @@ export default function ChatWorkspace({
               Về cuộc chat
             </button>
           </div>
-          
+
           <p className="text-[10px] text-amber-950 font-medium leading-relaxed bg-white/60 p-2.5 rounded-lg border border-amber-200/50">
-            Dành cho người bán & người mua: Hệ thống AI sẽ phân tích các đặc trưng mặt hàng để khuyên khoảng định giá tối ưu nhất so với thị trường sinh viên toàn quốc.
+            Dành cho người bán & người mua: Hệ thống AI sẽ phân tích các đặc
+            trưng mặt hàng để khuyên khoảng định giá tối ưu nhất so với thị
+            trường sinh viên toàn quốc.
           </p>
 
           <button
@@ -409,7 +495,9 @@ export default function ChatWorkspace({
             <div className="space-y-3 pt-2">
               <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-2 shadow-2xs">
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-stone-400 font-semibold font-display">ĐỘ TIN CẬY AI</span>
+                  <span className="text-stone-400 font-semibold font-display">
+                    ĐỘ TIN CẬY AI
+                  </span>
                   <span className="text-emerald-700 font-extrabold uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
                     {pricingReport.confidence}
                   </span>
@@ -417,16 +505,21 @@ export default function ChatWorkspace({
 
                 <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-1">
                   <div>
-                    <span className="text-stone-400 text-[10px] block">MỨC GIÁ ĐỀ NGHỊ</span>
+                    <span className="text-stone-400 text-[10px] block">
+                      MỨC GIÁ ĐỀ NGHỊ
+                    </span>
                     <span className="font-black text-rose-600 text-sm font-display">
                       {pricingReport.recommendedPrice?.toLocaleString()} VND
                     </span>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-stone-400 text-[10px] block">KHOẢNG KHUYÊN DÙNG</span>
+                    <span className="text-stone-400 text-[10px] block">
+                      KHOẢNG KHUYÊN DÙNG
+                    </span>
                     <span className="font-bold text-stone-700 text-[11px] block">
-                      {pricingReport.suggestedLowerLimit?.toLocaleString()}đ - {pricingReport.suggestedUpperLimit?.toLocaleString()}đ
+                      {pricingReport.suggestedLowerLimit?.toLocaleString()}đ -{" "}
+                      {pricingReport.suggestedUpperLimit?.toLocaleString()}đ
                     </span>
                   </div>
                 </div>
@@ -434,13 +527,17 @@ export default function ChatWorkspace({
 
               {/* Reasoning comment */}
               <div className="bg-white/90 p-3 rounded-xl border border-amber-150 text-[10px] text-amber-950 space-y-1 shadow-2xs">
-                <span className="font-black text-amber-800 block">Lời giải thích phân tích:</span>
-                <p className="leading-relaxed italic">"{pricingReport.reasoning}"</p>
+                <span className="font-black text-amber-800 block">
+                  Lời giải thích phân tích:
+                </span>
+                <p className="leading-relaxed italic">
+                  "{pricingReport.reasoning}"
+                </p>
               </div>
             </div>
           )}
         </div>
-        
+
         <div className="text-[9px] text-stone-400 text-center pt-2 border-t border-amber-200/50 mt-4 italic">
           Bảo trợ thông tin bởi mô hình Gemini 2.0-flash
         </div>
